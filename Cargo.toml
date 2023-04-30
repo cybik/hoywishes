@@ -1,0 +1,13 @@
+[package]
+name = "wishget"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rust-strings = "0.4.0"
+open = "4.0.0"
+clap = "4.2.5"
+glob = "0.3.1"
+regex = "1"
