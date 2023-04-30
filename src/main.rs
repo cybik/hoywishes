@@ -11,11 +11,12 @@ fn main() {
             .action(ArgAction::Set)
             .required(true)
         )
-        .arg(clap::Arg::new("log")
-            .long("log")
-            .action(ArgAction::SetTrue)
-            .required(false)
-        );
+        /*.arg(clap::Arg::new("mode")
+            .long("mode")
+            .value_parser(["genshin", "hsr", "hi3rd"])
+            .default_value("genshin")
+            .action(ArgAction::Set)
+        )*/;
     let matches = cmd.get_matches();
     match matches.get_one::<String>("basepath") {
         Some(basepath) => {
@@ -27,9 +28,9 @@ fn main() {
                 match entry {
                     Ok(path) => {
                         let mut _output = wishes::get_wishes_url(path).unwrap();
-                        if matches.get_flag("log") {
+                        /*if matches.get_flag("log") {
                             _output += "#/log"
-                        }
+                        }*/
                         println!("{}", _output );
                     },
                     Err(e) => println!("{:?}", e),
