@@ -1,4 +1,6 @@
 mod wishes;
+
+use std::path::PathBuf;
 //use std::path::{Path, PathBuf};
 use clap::{/*arg, command, ArgGroup, ArgMatches, Command,*/ ArgAction};
 use glob::glob;
@@ -11,12 +13,18 @@ fn main() {
             .action(ArgAction::Set)
             .required(true)
         )
-        /*.arg(clap::Arg::new("mode")
+        .arg(clap::Arg::new("mode")
             .long("mode")
-            .value_parser(["genshin", "hsr", "hi3rd"])
+            .value_parser(["wishes", "data"])
+            .default_value("wishes")
+            .action(ArgAction::Set)
+        )
+        .arg(clap::Arg::new("game")
+            .long("game")
+            .value_parser(["genshin", "hsr"])
             .default_value("genshin")
             .action(ArgAction::Set)
-        )*/;
+        );
     let matches = cmd.get_matches();
     match matches.get_one::<String>("basepath") {
         Some(basepath) => {
@@ -27,11 +35,18 @@ fn main() {
             {
                 match entry {
                     Ok(path) => {
-                        let mut _output = wishes::get_wishes_url(path).unwrap();
-                        /*if matches.get_flag("log") {
-                            _output += "#/log"
-                        }*/
-                        println!("{}", _output );
+                        match matches.get_one::<String>("mode") {
+                            Some(mode) => {
+                                if mode != "wishes" {
+                                    data(path, matches.get_one::<String>("game"))
+                                } else {
+                                    wishes(path)
+                                }
+                            }
+                            None => {
+                                wishes(path);
+                            }
+                        }
                     },
                     Err(e) => println!("{:?}", e),
                 }
@@ -40,4 +55,14 @@ fn main() {
         None => {
         }
     }
+}
+
+pub fn data(path: PathBuf, game: Option<&String>) {
+    let mut _output = wishes::get_data_url(path, game);
+    println!("{}", _output );
+}
+
+pub fn wishes(path: PathBuf) {
+    let mut _output = wishes::get_wishes_url(path).unwrap();
+    println!("{}", _output );
 }
