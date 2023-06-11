@@ -38,12 +38,18 @@ fn main() {
                         match matches.get_one::<String>("mode") {
                             Some(mode) => {
                                 if mode == "all" || mode == "wishes" {
+                                    if mode == "all" {
+                                        println!("Wishes:");
+                                    }
                                     wishes(path.clone());
                                     if mode == "all" {
                                         println!("------------");
                                     }
                                 }
                                 if mode == "all" || mode == "data" {
+                                    if mode == "all" {
+                                        println!("Wish Data:");
+                                    }
                                     data(path.clone(), matches.get_one::<String>("game"))
                                 }
                             }
