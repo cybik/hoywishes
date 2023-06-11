@@ -15,7 +15,7 @@ fn main() {
         )
         .arg(clap::Arg::new("mode")
             .long("mode")
-            .value_parser(["wishes", "data"])
+            .value_parser(["all", "wishes", "data"])
             .default_value("wishes")
             .action(ArgAction::Set)
         )
@@ -37,10 +37,14 @@ fn main() {
                     Ok(path) => {
                         match matches.get_one::<String>("mode") {
                             Some(mode) => {
-                                if mode != "wishes" {
-                                    data(path, matches.get_one::<String>("game"))
-                                } else {
-                                    wishes(path)
+                                if mode == "all" || mode == "wishes" {
+                                    wishes(path.clone());
+                                    if mode == "all" {
+                                        println!("------------");
+                                    }
+                                }
+                                if mode == "all" || mode == "data" {
+                                    data(path.clone(), matches.get_one::<String>("game"))
                                 }
                             }
                             None => {
