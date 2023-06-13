@@ -19,6 +19,10 @@ fn main() {
             .default_value("wishes")
             .action(ArgAction::Set)
         )
+        .arg(clap::Arg::new("fetchdata")
+            .long("fetchdata")
+            .action(ArgAction::SetTrue)
+        )
         .arg(clap::Arg::new("game")
             .long("game")
             .value_parser(["genshin", "hsr"])
@@ -41,7 +45,8 @@ fn main() {
                                     if mode == "all" {
                                         println!("Wishes:");
                                     }
-                                    wishes(path.clone());
+                                    let mut _output =  wishes(path.clone());
+                                    println!("{}", _output );
                                     if mode == "all" {
                                         println!("------------");
                                     }
@@ -50,7 +55,12 @@ fn main() {
                                     if mode == "all" {
                                         println!("Wish Data:");
                                     }
-                                    data(path.clone(), matches.get_one::<String>("game"))
+                                    let mut _output = data(path.clone(), matches.get_one::<String>("game"));
+                                    println!("{}", _output );
+                                    if *matches.get_one::<bool>("fetchdata").unwrap() {
+                                        println!("moo");
+                                        wishes::data::fetch(_output.clone());
+                                    }
                                 }
                             }
                             None => {
@@ -67,12 +77,10 @@ fn main() {
     }
 }
 
-pub fn data(path: PathBuf, game: Option<&String>) {
-    let mut _output = wishes::get_data_url(path, game);
-    println!("{}", _output );
+pub fn data(path: PathBuf, game: Option<&String>) -> String {
+    return wishes::get_data_url(path, game);
 }
 
-pub fn wishes(path: PathBuf) {
-    let mut _output = wishes::get_wishes_url(path).unwrap();
-    println!("{}", _output );
+pub fn wishes(path: PathBuf) -> String {
+    return wishes::get_wishes_url(path).unwrap();
 }
