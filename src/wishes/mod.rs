@@ -1,3 +1,5 @@
+pub mod data;
+
 use rust_strings::{FileConfig, strings};
 //use std::env;
 use std::path::{/*Path,*/ PathBuf};
@@ -30,7 +32,7 @@ pub fn get_wishes_url(cachepath: PathBuf) -> Option<String> {
 
 fn get_param(base_url: Url, param: &str) -> String {
     match base_url.query_pairs().find(
-        |(e, f)| e == param
+        |(e, _f)| e == param
     ) {
         Some((_r, _re)) => {
             return _re.to_string();
