@@ -24,6 +24,10 @@ fn main() {
             .long("fetchdata")
             .action(ArgAction::SetTrue)
         )
+        .arg(clap::Arg::new("fetchdatarec")
+            .long("fetchdatarec")
+            .action(ArgAction::SetTrue)
+        )
         .arg(clap::Arg::new("game")
             .long("game")
             .value_parser(["genshin", "hsr"])
@@ -63,8 +67,7 @@ fn main() {
                                     let mut _output = data(path.clone(), matches.get_one::<String>("game"));
                                     println!("{}&page=1&size=5&end_id=0", _output );
                                     if *matches.get_one::<bool>("fetchdata").unwrap() {
-                                        //wishes::data::fetch(_output.clone());
-                                        wishes::data::fetch_deux(_output.clone());
+                                        wishes::data::fetch_data_recursive(_output.clone()).expect("bonk");
                                     }
                                 }
                             }

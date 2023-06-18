@@ -50,11 +50,11 @@ pub fn get_data_url(cachepath: PathBuf, game: Option<&String>) -> String {
             let mut _queryplus = "".to_string();
             _queryplus += _url.query().unwrap();
             if game.unwrap() == "genshin" {
-                _url.set_host(Option::from("hk4e-api-os.hoyoverse.com"));
+                _url.set_host(Option::from("hk4e-api-os.hoyoverse.com")).expect("bonk");
                 _url.set_path("/event/gacha_info/api/getGachaLog");
                 _queryplus += format!("&gacha_type={}", get_param(base_url.clone(), "init_type")).as_str();
             } else if game.unwrap() == "hsr" {
-                _url.set_host(Option::from("api-os-takumi.mihoyo.com"));
+                _url.set_host(Option::from("api-os-takumi.mihoyo.com")).expect("bonk");
                 _url.set_path("/common/gacha_record/api/getGachaLog");
                 _queryplus += format!("&gacha_type={}", get_param(base_url.clone(), "default_gacha_type")).as_str();
             } else {
