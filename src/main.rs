@@ -1,6 +1,7 @@
 mod wishes;
 
 use std::path::PathBuf;
+use std::process::exit;
 //use std::path::{Path, PathBuf};
 use clap::{/*arg, command, ArgGroup, ArgMatches, Command,*/ ArgAction};
 use glob::glob;
@@ -32,6 +33,10 @@ fn main() {
     let matches = cmd.get_matches();
     match matches.get_one::<String>("basepath") {
         Some(basepath) => {
+            if basepath.is_empty() {
+                eprintln!("Basepath expected. Empty string was provided.");
+                exit(1)
+            }
             let _filter = basepath.to_owned() + "/**/webCaches/Cache/Cache_Data/data_2";
 
             for entry in glob(_filter.as_str())
@@ -56,10 +61,10 @@ fn main() {
                                         println!("Wish Data:");
                                     }
                                     let mut _output = data(path.clone(), matches.get_one::<String>("game"));
-                                    println!("{}", _output );
+                                    println!("{}&page=1&size=5&end_id=0", _output );
                                     if *matches.get_one::<bool>("fetchdata").unwrap() {
-                                        println!("moo");
-                                        wishes::data::fetch(_output.clone());
+                                        //wishes::data::fetch(_output.clone());
+                                        wishes::data::fetch_deux(_output.clone());
                                     }
                                 }
                             }

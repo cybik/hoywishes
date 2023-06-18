@@ -4,7 +4,7 @@ use rust_strings::{FileConfig, strings};
 //use std::env;
 use std::path::{/*Path,*/ PathBuf};
 use regex::Regex;
-use url::{Url, Host, Position};
+use url::{Url};
 
 pub fn get_wishes_url(cachepath: PathBuf) -> Option<String> {
     if !cachepath.exists() { // Check 1: does the cache even exist.
@@ -61,7 +61,7 @@ pub fn get_data_url(cachepath: PathBuf, game: Option<&String>) -> String {
                 // bonk
             }
             return format!(
-                "{0}://{1}{2}?{3}&page=1&size=5&end_id=0",
+                "{0}://{1}{2}?{3}",
                 _url.scheme(), _url.host_str().unwrap(), _url.path(), _queryplus
             );
         }
