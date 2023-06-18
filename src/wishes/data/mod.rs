@@ -14,21 +14,20 @@ fn fetch_data_rec(
     acc: &mut json::JsonValue, meta: &mut json::JsonValue,
     url: String, page: u8, szgate: usize, end_id: String
 ) {
-    let mut parseddata : json::JsonValue = json::parse(
+    (*meta) = json::parse(
         reqwest::blocking::get(urlgen(url.clone(), szgate, page, end_id).as_str())
             .unwrap().text().unwrap().as_str()
     ).unwrap()["data"].clone();
-    let listed : json::JsonValue = parseddata["list"].clone();
-    parseddata.remove("list");
-    *meta = parseddata.clone();
-    for i in 0..listed.len() {
-        acc.push(listed[i].clone()).expect("Bonk");
+    let count = ((*meta)["list"]).len();
+    for i in 0..((*meta)["list"]).len() {
+        acc.push(((*meta)["list"])[i].clone()).expect("Bonk");
     }
+    (*meta).remove("list");
     sleep(Duration::from_secs(2));
-    if listed.len() == szgate {
+    if count == szgate {
         fetch_data_rec(
             acc, meta, url, page+1, szgate,
-            String::from(listed[listed.len()-1]["id"].as_str().unwrap())
+            String::from(acc[acc.len()-1]["id"].as_str().unwrap())
         );
     }
 }
