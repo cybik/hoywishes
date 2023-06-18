@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use clap::Args;
 
 use crate::url::parse_wishes_urls;
+use glob::glob;
 
 #[derive(Args)]
 pub struct HistoryArgs {
@@ -33,52 +34,54 @@ impl HistoryArgs {
         }
 
         // Iterate over game installation files and folders
-        for entry in self.game_path.read_dir()?.flatten() {
-            // GenshinImpact[_Data]
-            // StarRail[_Data]
-            // etc.
-            if entry.file_name().to_string_lossy().ends_with("_Data") {
-                let data_path = entry.path().join("webCaches/Cache/Cache_Data/data_2");
+        let _filter = self.game_path.to_str().unwrap().to_owned() + "/**/webCaches/Cache/Cache_Data/data_2";
+        for data_path in glob(_filter.as_str()).expect("Failed to read glob pattern")
+        {
+            match data_path {
+                Err(_) => {},
+                Ok(path) => {
+                    if path.exists() {
+                        println!("[#] Data file: {}", path.to_string_lossy());
 
-                if data_path.exists() {
-                    println!("[#] Data file: {}", data_path.to_string_lossy());
+                        match parse_wishes_urls(path) {
+                            Ok(urls) if urls.is_empty() => {
+                                eprintln!("No wishes URL found");
+                            }
 
-                    match parse_wishes_urls(data_path) {
-                        Ok(urls) if urls.is_empty() => {
-                            eprintln!("No wishes URL found");
+                            Ok(mut urls) => {
+                                // Reverse found urls vector if needed
+                                if self.reverse_order {
+                                    urls = urls.into_iter().rev().collect();
+                                }
+
+                                // Limit returning urls
+                                urls = urls[..self.max_return_num].to_vec();
+
+                                // Open the first found URL
+                                if self.open_first_url {
+                                    open::that(&urls[0])?;
+                                }
+
+                                // And print found URLs
+                                for url in urls {
+                                    // TODO: it's possible to print here banner type and some other
+                                    //       metadata.
+                                    //       Don't print links with outdated API keys as well.
+                                    println!("    - {url}");
+
+                                    // Open found url if required
+                                    // if cli.open_url {
+                                    //     open::that(url)?;
+                                    // }
+                                }
+                            }
+
+                            Err(err) => eprintln!("Failed to parse wishes URLs: {err}")
                         }
 
-                        Ok(mut urls) => {
-                            // Reverse found urls vector if needed
-                            if self.reverse_order {
-                                urls = urls.into_iter().rev().collect();
-                            }
-
-                            // Limit returning urls
-                            urls = urls[..self.max_return_num].to_vec();
-
-                            // Open the first found URL
-                            if self.open_first_url {
-                                open::that(&urls[0])?;
-                            }
-
-                            // And print found URLs
-                            for url in urls {
-                                // TODO: it's possible to print here banner type and some other metadata, and don't print links with outdated API keys as well
-                                println!("    - {url}");
-
-                                // Open found url if required
-                                // if cli.open_url {
-                                //     open::that(url)?;
-                                // }
-                            }
-                        }
-
-                        Err(err) => eprintln!("Failed to parse wishes URLs: {err}")
+                        // One empty line to split series
+                        println!();
                     }
-
-                    // One empty line to split series
-                    println!();
                 }
             }
         }
