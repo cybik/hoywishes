@@ -10,7 +10,6 @@ fn generate(url: String, sizegate: usize, page: u8, end_id: String) -> String {
     return url_construct;
 }
 pub fn fetch_deux(url: String) -> Result<(), Box<dyn std::error::Error>> {
-    // missing: &page=1&size=5&end_id=0
     let mut page = 1;
     let mut end_id: String = String::from("0");
     let sizegate : usize = 5;
@@ -25,11 +24,7 @@ pub fn fetch_deux(url: String) -> Result<(), Box<dyn std::error::Error>> {
         parsed["data"].remove("list");
         end_id = String::from(listed[listed.len()-1]["id"].as_str().unwrap());
         page += 1;
-        if accumulated.is_empty() {
-            accumulated = listed.clone();
-        } else {
-            accumulated.push(listed[0].clone());
-        }
+        accumulated.push(listed[0].clone());
         last_seen_size = listed.len();
         sleep(Duration::from_secs(2)); // to kill this.
     }
