@@ -21,7 +21,9 @@ fn fetch_data_rec(
     let listed : json::JsonValue = parseddata["list"].clone();
     parseddata.remove("list");
     *meta = parseddata.clone();
-    acc.push(listed[0].clone()).expect("Bonk");
+    for i in 0..listed.len() {
+        acc.push(listed[i].clone()).expect("Bonk");
+    }
     sleep(Duration::from_secs(2));
     if listed.len() == szgate {
         fetch_data_rec(
