@@ -18,11 +18,8 @@ fn fetch_data_rec(
         reqwest::blocking::get(urlgen(url.clone(), szgate, page, end_id).as_str())
             .unwrap().text().unwrap().as_str()
     ).unwrap()["data"].clone();
-    let count = ((*meta)["list"]).len();
-    for i in 0..((*meta)["list"]).len() {
-        acc.push(((*meta)["list"])[i].clone()).expect("Bonk");
-    }
-    (*meta).remove("list");
+    let count = (*meta)["list"].len();
+    for i in 0..count { acc.push((*meta)["list"][i].clone()).expect("Bonk"); }
     sleep(Duration::from_secs(2));
     if count == szgate {
         fetch_data_rec(
@@ -39,9 +36,10 @@ pub fn fetch_data_recursive(url: String) -> Result<(), Box<dyn std::error::Error
         &mut acc, &mut meta,
         url, 1, 5, String::from("0")
     );
-    meta["uid"] = json::JsonValue::from(acc[acc.len() - 1]["uid"].as_str());
+    meta.remove("list");
     meta.remove("page");
     meta.remove("size");
+    meta["uid"] = json::JsonValue::from(acc[acc.len() - 1]["uid"].as_str());
     meta["total"] = json::JsonValue::from(acc.len());
 
     println!("JSON:\n{}", acc.pretty(2));

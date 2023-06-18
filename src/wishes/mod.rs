@@ -6,6 +6,12 @@ use std::path::{/*Path,*/ PathBuf};
 use regex::Regex;
 use url::{Url};
 
+enum Game {
+    Genshin,
+    HSR,
+    Unsupported
+}
+
 pub fn get_wishes_url(cachepath: PathBuf) -> Option<String> {
     if !cachepath.exists() { // Check 1: does the cache even exist.
         println!("Honq");
@@ -43,22 +49,36 @@ fn get_param(base_url: Url, param: &str) -> String {
     }
 }
 
-pub fn get_data_url(cachepath: PathBuf, game: Option<&String>) -> String {
+fn get_game(_url : &Url) -> Game {
+    if _url.path().contains("hkrpg") {
+        return Game::HSR;
+    }
+    else if _url.path().contains("Genshin") {
+        return Game::Genshin;
+    }
+    return Game::Unsupported;
+}
+
+pub fn get_data_url(cachepath: PathBuf) -> String {
     match Url::parse(get_wishes_url(cachepath).unwrap().as_str()) {
         Ok(base_url) => {
             let mut _url = base_url.clone();
             let mut _queryplus = "".to_string();
             _queryplus += _url.query().unwrap();
-            if game.unwrap() == "genshin" {
-                _url.set_host(Option::from("hk4e-api-os.hoyoverse.com")).expect("bonk");
-                _url.set_path("/event/gacha_info/api/getGachaLog");
-                _queryplus += format!("&gacha_type={}", get_param(base_url.clone(), "init_type")).as_str();
-            } else if game.unwrap() == "hsr" {
-                _url.set_host(Option::from("api-os-takumi.mihoyo.com")).expect("bonk");
-                _url.set_path("/common/gacha_record/api/getGachaLog");
-                _queryplus += format!("&gacha_type={}", get_param(base_url.clone(), "default_gacha_type")).as_str();
-            } else {
-                // bonk
+            match get_game(&_url) {
+                Game::HSR => {
+                    _url.set_host(Option::from("api-os-takumi.mihoyo.com")).expect("bonk");
+                    _url.set_path("/common/gacha_record/api/getGachaLog");
+                    _queryplus += format!("&gacha_type={}", get_param(base_url.clone(), "default_gacha_type")).as_str();
+                }
+                Game::Genshin => {
+                    _url.set_host(Option::from("hk4e-api-os.hoyoverse.com")).expect("bonk");
+                    _url.set_path("/event/gacha_info/api/getGachaLog");
+                    _queryplus += format!("&gacha_type={}", get_param(base_url.clone(), "init_type")).as_str();
+                }
+                Game::Unsupported => {
+                    panic!("Unsupported game. FOH.")
+                }
             }
             return format!(
                 "{0}://{1}{2}?{3}",

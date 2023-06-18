@@ -23,12 +23,6 @@ fn main() {
         .arg(clap::Arg::new("fetchdata")
             .long("fetchdata")
             .action(ArgAction::SetTrue)
-        )
-        .arg(clap::Arg::new("game")
-            .long("game")
-            .value_parser(["genshin", "hsr"])
-            .default_value("genshin")
-            .action(ArgAction::Set)
         );
     let matches = cmd.get_matches();
     match matches.get_one::<String>("basepath") {
@@ -60,7 +54,7 @@ fn main() {
                                     if mode == "all" {
                                         println!("Wish Data:");
                                     }
-                                    let mut _output = data(path.clone(), matches.get_one::<String>("game"));
+                                    let mut _output = data(path.clone());
                                     println!("{}&page=1&size=5&end_id=0", _output );
                                     if *matches.get_one::<bool>("fetchdata").unwrap() {
                                         wishes::data::fetch_data_recursive(_output.clone()).expect("bonk");
@@ -81,8 +75,8 @@ fn main() {
     }
 }
 
-pub fn data(path: PathBuf, game: Option<&String>) -> String {
-    return wishes::get_data_url(path, game);
+pub fn data(path: PathBuf) -> String {
+    return wishes::get_data_url(path);
 }
 
 pub fn wishes(path: PathBuf) -> String {
