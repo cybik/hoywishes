@@ -26,7 +26,7 @@ pub struct HistoryArgs {
     /// Otherwise the most recent one
     pub open_url: bool,
 
-    #[arg(short, long, default_value_t = 3)]
+    #[arg(short, long, default_value_t = 1)]
     /// Maximal number of URLs to return
     pub max_return_num: usize
 }
@@ -61,9 +61,13 @@ impl HistoryArgs {
                                 if self.reverse_order {
                                     urls = urls.into_iter().rev().collect();
                                 }
+                                // Resize to *either* the max-return or the number of hits.
+                                //  This quirk happens when the cache is extremely fresh and
+                                //  has less entries than the max argument.
+                                urls = urls[..urls.len().min(self.max_return_num)].to_vec();
                                 // Open the first found URL
                                 if self.open_url {
-                                    open::that(&urls[0])?;
+                                    open::that(urls.last().unwrap())?;
                                 }
                                 // And print found URL
                                 // TODO: Look into further ways to present the data
@@ -72,10 +76,11 @@ impl HistoryArgs {
                                 //          - Static generation of a wish history list?
                                 // TODO: Look into data persistence in %USERDIR%/anime-game-data
                                 // TODO: Look into non-miHoYo games support when possible
-                                println!("{}#/log", urls[0]);
-
-                                let mut clip = ClipboardContext::new().unwrap();
-                                clip.set_contents(urls[0].clone().into()).unwrap();
+                                if self.max_return_num == 1 || urls.len() == 1 {
+                                    println!("{}#/log", urls.last().unwrap());
+                                    let mut clip = ClipboardContext::new().unwrap();
+                                    clip.set_contents(urls.last().unwrap().into()).unwrap();
+                                } else { for url in urls { println!("- {}#/log", url); } }
                             }
 
                             Err(err) => eprintln!("Failed to parse wishes URLs: {err}")

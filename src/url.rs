@@ -12,6 +12,7 @@ pub fn parse_wishes_urls(data_path: impl AsRef<Path>) -> anyhow::Result<Vec<Stri
     let data = std::fs::read(data_path)?;
     let data = String::from_utf8_lossy(&data);
 
+    // TODO: somehow URLs that are actually irrelevant get caught up. Investigate.
     let urls = data.split('\n').rev()
         // Find last line with part of url we need
         .filter(|line| line.contains("gacha-v2/"))
