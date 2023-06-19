@@ -16,11 +16,19 @@ use colored::Colorize;
 use directories::ProjectDirs;
 use spinoff::{Spinner, spinners, Color, Streams};
 
+// App Identifiers
+const QAL: &str = "wishget";
+const ORG: &str = "moe.launcher";
+const WTT: &str = "A Gacha Wish Tracking Tool";
+
 #[derive(Args)]
 pub struct DataArgs {
     #[arg(short = 'p', long)]
     /// Path to the game installation
     pub game_path: PathBuf,
+    #[arg(short = 'i', long, default_value_t = false)]
+    /// Ignore cache
+    pub ignore_cache: bool,
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -56,7 +64,7 @@ impl DataArgs {
                                 anyhow::bail!("{}", "No wishes URL found".red().bold());
                             }
                             Ok(urls) => {
-                                let (acc, meta, url) = fetch_data( urls[0].clone());
+                                let (acc, meta, url) = fetch_data( urls[0].clone(), self.ignore_cache);
                                 eprintln!(
                                     "---\n{}\n",
                                     "JSON".bold().green()
@@ -90,11 +98,11 @@ fn urlgen(url: String, gacha_type: String, szgate: usize, page: u8, end_id: Stri
 
 fn fetch_data_rec(
     acc: &mut json::JsonValue, meta: &mut json::JsonValue, cache: json::JsonValue,
-    url: String, gacha_type: &String, page: u8, szgate: usize, end_id: String, skip_cache: bool
+    url: String, gacha_type: &String, page: u8, szgate: usize, end_id: String, ignore_cache: bool
 ) -> String {
     return fetch_data_rec_priv(
         acc, meta, cache,
-        url, gacha_type, page, szgate, end_id, false, skip_cache
+        url, gacha_type, page, szgate, end_id, false, ignore_cache
     );
 }
 
@@ -114,7 +122,7 @@ fn fetch_data_rec_once(
 fn fetch_data_rec_priv(
     acc: &mut json::JsonValue, meta: &mut json::JsonValue, cache: json::JsonValue,
     url: String, gacha_type: &String, page: u8, szgate: usize, end_id: String,
-    run_only_once: bool, skip_cache: bool
+    run_only_once: bool, ignore_cache: bool
 ) -> String {
     let mut cache_hit = false; // will sort out.
     let req_url = urlgen(url.clone(), gacha_type.clone(), szgate, page, end_id);
@@ -156,7 +164,7 @@ fn fetch_data_rec_priv(
     return fetch_data_rec_priv(
         acc, meta, cache, url, gacha_type,
         page + 1, szgate, String::from(acc[acc.len() - 1]["id"].as_str().unwrap()),
-        run_only_once, skip_cache
+        run_only_once, ignore_cache
     );
 }
 
@@ -169,7 +177,7 @@ fn generate_path(proj_dirs: ProjectDirs, game: Game, uid: &String, gacha_type: &
 
 fn write_to_local_cache(game: Game, uid: &String, gacha_type: &String, acc: &json::JsonValue) {
     if let Some(proj_dirs) = directories::ProjectDirs::from(
-        "wishget", "moe.launcher",  "An Anime Game Wish Tracking Tool"
+        QAL, ORG,  WTT
     ) {
         let path = generate_path(proj_dirs, game, uid, gacha_type);
         if !path.exists() {
@@ -184,19 +192,21 @@ fn write_to_local_cache(game: Game, uid: &String, gacha_type: &String, acc: &jso
     }
 }
 
-fn load_local_cache_if_exists(game: Game, uid: &String, gacha_type: &String) -> json::JsonValue {
-    if let Some(proj_dirs) = directories::ProjectDirs::from(
-        "wishget", "moe.launcher",  "An Anime Game Wish Tracking Tool"
-    ) {
-        let path = generate_path(proj_dirs, game, uid, gacha_type);
-        if path.exists() {
-            return json::parse(fs::read_to_string(path).unwrap().as_str()).unwrap();
+fn load_local_cache_if_exists(game: Game, uid: &String, gacha_type: &String, ignore_cache: bool) -> json::JsonValue {
+    if !ignore_cache {
+        if let Some(proj_dirs) = directories::ProjectDirs::from(
+            QAL, ORG,  WTT
+        ) {
+            let path = generate_path(proj_dirs, game, uid, gacha_type);
+            if path.exists() {
+                return json::parse(fs::read_to_string(path).unwrap().as_str()).unwrap();
+            }
         }
     }
     return json::JsonValue::Null;
 }
 
-pub fn fetch_data(_url: String) -> (json::JsonValue, json::JsonValue, String) {
+pub fn fetch_data(_url: String, ignore_cache: bool) -> (json::JsonValue, json::JsonValue, String) {
     let (game, url, gacha_type) = build_data_url(_url).unwrap();
     let mut acc: json::JsonValue = json::JsonValue::new_array();
     let mut meta: json::JsonValue = json::JsonValue::new_object();
@@ -214,7 +224,7 @@ pub fn fetch_data(_url: String) -> (json::JsonValue, json::JsonValue, String) {
     spinner.success("Metadata processed.");
 
     // 2. Load the local cache, if it exists
-    let acc_local = load_local_cache_if_exists(game, &_uid, &gacha_type);
+    let acc_local = load_local_cache_if_exists(game, &_uid, &gacha_type, ignore_cache);
 
     // 3. Run it.
     spinner = Spinner::new_with_stream(
@@ -224,13 +234,15 @@ pub fn fetch_data(_url: String) -> (json::JsonValue, json::JsonValue, String) {
         &mut acc, &mut meta, acc_local,
         url.clone(), &gacha_type,
         1, 5, String::from("0"),
-        false // TODO: implement skip_cache argument to ignore cache.
-                        //        Cache corruption and user option can happen.
+        ignore_cache // TODO: implement ignore_cache argument to ignore cache.
+                               //        Cache corruption and user option can happen.
     );
     spinner.success("Done!");
 
     // 4. Write to storage.
-    write_to_local_cache(game, &_uid, &gacha_type, &acc);
+    if !ignore_cache {
+        write_to_local_cache(game, &_uid, &gacha_type, &acc);
+    }
 
     return (acc, meta, final_url);
 }
