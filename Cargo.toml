@@ -9,7 +9,6 @@ authors = [
 edition = "2021"
 readme = "README.md"
 license = "GPL-3.0"
-license-file = "LICENSE"
 
 [profile.release]
 lto = true

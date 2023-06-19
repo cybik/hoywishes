@@ -48,9 +48,7 @@ impl DataArgs {
                                 anyhow::bail!("{}", "No wishes URL found".red().bold());
                             }
                             Ok(urls) => {
-                                let acc : json::JsonValue;
-                                let meta : json::JsonValue;
-                                (acc, meta) = fetch_data_recursive( build_data_url(urls[0].clone()).unwrap());
+                                let (acc, meta) = fetch_data_recursive( build_data_url(urls[0].clone()).unwrap());
                                 println!(
                                     "{}:\n{}\n{}:\n{}",
                                     "JSON".bold().green(), acc.pretty(2),
@@ -108,8 +106,7 @@ fn fetch_data_rec(
     }
 }
 
-pub fn fetch_data_recursive(url: String)
-    -> (json::JsonValue, json::JsonValue )
+pub fn fetch_data_recursive(url: String) -> (json::JsonValue, json::JsonValue )
 {
     let mut acc: json::JsonValue = json::JsonValue::new_array();
     let mut meta: json::JsonValue = json::JsonValue::new_object();
