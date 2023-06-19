@@ -66,7 +66,7 @@ impl DataArgs {
 
 fn urlgen(url: String, szgate: usize, page: u8, end_id: String) -> String {
     let mut url_construct = url.clone();
-    url_construct += format!("&size={}&page={}&end_id={}", szgate, page, end_id).as_str();
+    url_construct += format!("&size={szgate}&page={page}&end_id={end_id}").as_str();
     return url_construct;
 }
 
@@ -102,7 +102,9 @@ pub fn fetch_data_recursive(url: String) -> Result<(), Box<dyn std::error::Error
     meta["uid"] = json::JsonValue::from(acc[acc.len() - 1]["uid"].as_str());
     meta["total"] = json::JsonValue::from(acc.len());
 
-    println!("JSON:\n{}", acc.pretty(2));
-    println!("Metadata:\n{}", meta.pretty(2));
+    println!("{}:\n{}\n{}:\n{}\n",
+             "JSON".bold().green(), acc.pretty(2),
+             "Metadata".bold().green(), meta.pretty(2)
+    );
     Ok(())
 }
