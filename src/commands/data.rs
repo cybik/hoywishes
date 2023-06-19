@@ -46,7 +46,7 @@ impl DataArgs {
                             Ok(urls) if urls.is_empty() => {
                                 anyhow::bail!("{}", "No wishes URL found".red().bold());
                             }
-                            Ok(mut urls) => {
+                            Ok(urls) => {
                                 fetch_data_recursive( build_data_url(urls[0].clone()).unwrap());
                             }
                             Err(err) => eprintln!("Failed to parse wishes URLs: {err}")
@@ -83,9 +83,18 @@ fn fetch_data_rec(
     sleep(Duration::from_secs(2));
     if count == szgate {
         fetch_data_rec(
-            acc, meta, url, page+1, szgate,
-            String::from(acc[acc.len()-1]["id"].as_str().unwrap())
+            acc, meta, url, page + 1, szgate,
+            String::from(acc[acc.len() - 1]["id"].as_str().unwrap())
         );
+    } else {
+        // Final Recursion.
+        meta["uid"] = json::JsonValue::from(acc[acc.len() - 1]["uid"].as_str());
+        meta["total"] = json::JsonValue::from(acc.len());
+
+        // Last call: clean these up
+        meta.remove("page");
+        meta.remove("size");
+        meta.remove("list");
     }
 }
 
@@ -96,15 +105,11 @@ pub fn fetch_data_recursive(url: String) -> Result<(), Box<dyn std::error::Error
         &mut acc, &mut meta,
         url, 1, 5, String::from("0")
     );
-    meta.remove("list");
-    meta.remove("page");
-    meta.remove("size");
-    meta["uid"] = json::JsonValue::from(acc[acc.len() - 1]["uid"].as_str());
-    meta["total"] = json::JsonValue::from(acc.len());
 
-    println!("{}:\n{}\n{}:\n{}\n",
-             "JSON".bold().green(), acc.pretty(2),
-             "Metadata".bold().green(), meta.pretty(2)
+    println!(
+        "{}:\n{}\n{}:\n{}",
+         "JSON".bold().green(), acc.pretty(2),
+         "Metadata".bold().green(), meta.pretty(2)
     );
     Ok(())
 }

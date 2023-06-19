@@ -6,6 +6,9 @@ use crate::url::parse_wishes_urls;
 use glob::glob;
 use colored::Colorize;
 
+use copypasta_ext::prelude::*;
+use copypasta_ext::x11_fork::ClipboardContext;
+
 #[derive(Args)]
 pub struct HistoryArgs {
     #[arg(short, long)]
@@ -69,7 +72,10 @@ impl HistoryArgs {
                                 //          - Static generation of a wish history list?
                                 // TODO: Look into data persistence in %USERDIR%/anime-game-data
                                 // TODO: Look into non-miHoYo games support when possible
-                                println!("{}", urls[0]);
+                                println!("{}#/log", urls[0]);
+
+                                let mut clip = ClipboardContext::new().unwrap();
+                                clip.set_contents(urls[0].clone().into()).unwrap();
                             }
 
                             Err(err) => eprintln!("Failed to parse wishes URLs: {err}")

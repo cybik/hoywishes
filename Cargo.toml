@@ -21,3 +21,4 @@ serde_json = "1.0"
 open = "4.1.0"
 colored = "2"
 url = { version = "2", features = ["serde"] }
+copypasta-ext = "0.4.4"
