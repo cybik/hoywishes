@@ -1,16 +1,20 @@
-use std::path::PathBuf;
+use crate::url::{build_data_url, parse_wishes_urls};
 
+extern crate reqwest;
+
+use std::path::PathBuf;
 use clap::{Args, ValueEnum};
+use std::thread::sleep;
+use std::time::Duration;
+use json;
+use glob::glob;
+use colored::Colorize;
 
 #[derive(Args)]
 pub struct DataArgs {
     #[arg(short = 'p', long)]
     /// Path to the game installation
     pub game_path: PathBuf,
-
-    #[arg(short, long, value_enum)]
-    /// Game variant
-    pub game: Game
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -20,25 +24,85 @@ pub enum Game {
     Genshin,
 
     /// Honkai: Star Rail
-    HSR
+    HSR,
+
+    /// Unsupported
+    Unsupported
 }
 
 impl DataArgs {
     pub fn execute(&self) -> anyhow::Result<()> {
-        // match parse_wishes_urls(data_path) {
-        //     Ok(urls) => {
-        //         for url in urls {
-        //             if let Some(_url) = build_data_url(url, *game) {
-        //                 // TODO: do somehting with it
+        if !self.game_path.exists() {
+            anyhow::bail!("{}", "Given game path doesn't exist".bold().red());
+        }
+        let _filter = self.game_path.to_str().unwrap().to_owned() + "/**/webCaches/Cache/Cache_Data/data_2";
+        for data_path in glob(_filter.as_str()).expect("Failed to read glob pattern")
+        {
+            match data_path {
+                Err(_) => {},
+                Ok(path) => {
+                    if path.exists() {
+                        match parse_wishes_urls(path) {
+                            Ok(urls) if urls.is_empty() => {
+                                anyhow::bail!("{}", "No wishes URL found".red().bold());
+                            }
+                            Ok(mut urls) => {
+                                fetch_data_recursive( build_data_url(urls[0].clone()).unwrap());
+                            }
+                            Err(err) => eprintln!("Failed to parse wishes URLs: {err}")
+                        }
 
-        //                 todo!()
-        //             }
-        //         }
-        //     }
-
-        //     Err(err) => eprintln!("Failed to parse wishes URLs: {err}")
-        // }
+                        // One empty line to split series
+                        println!();
+                    }
+                }
+            }
+        }
 
         Ok(())
     }
+}
+
+
+fn urlgen(url: String, szgate: usize, page: u8, end_id: String) -> String {
+    let mut url_construct = url.clone();
+    url_construct += format!("&size={}&page={}&end_id={}", szgate, page, end_id).as_str();
+    return url_construct;
+}
+
+fn fetch_data_rec(
+    acc: &mut json::JsonValue, meta: &mut json::JsonValue,
+    url: String, page: u8, szgate: usize, end_id: String
+) {
+    (*meta) = json::parse(
+        reqwest::blocking::get(urlgen(url.clone(), szgate, page, end_id).as_str())
+            .unwrap().text().unwrap().as_str()
+    ).unwrap()["data"].clone();
+    let count = (*meta)["list"].len();
+    for i in 0..count { acc.push((*meta)["list"][i].clone()).expect("Bonk"); }
+    sleep(Duration::from_secs(2));
+    if count == szgate {
+        fetch_data_rec(
+            acc, meta, url, page+1, szgate,
+            String::from(acc[acc.len()-1]["id"].as_str().unwrap())
+        );
+    }
+}
+
+pub fn fetch_data_recursive(url: String) -> Result<(), Box<dyn std::error::Error>> {
+    let mut acc : json::JsonValue = json::JsonValue::new_array();
+    let mut meta : json::JsonValue = json::JsonValue::new_object();
+    fetch_data_rec(
+        &mut acc, &mut meta,
+        url, 1, 5, String::from("0")
+    );
+    meta.remove("list");
+    meta.remove("page");
+    meta.remove("size");
+    meta["uid"] = json::JsonValue::from(acc[acc.len() - 1]["uid"].as_str());
+    meta["total"] = json::JsonValue::from(acc.len());
+
+    println!("JSON:\n{}", acc.pretty(2));
+    println!("Metadata:\n{}", meta.pretty(2));
+    Ok(())
 }

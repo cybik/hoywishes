@@ -2,6 +2,8 @@ use std::path::Path;
 
 use crate::commands::data::Game;
 
+use url::{Url};
+
 /// Try to parse wishes URLs from the given data_2 file path
 /// 
 /// Return values from most recent to the oldest cached URL
@@ -32,30 +34,49 @@ pub fn parse_wishes_urls(data_path: impl AsRef<Path>) -> anyhow::Result<Vec<Stri
     Ok(urls)
 }
 
-pub fn build_data_url(history_url: impl AsRef<str>, game: Game) -> Option<String> {
+fn get_game(_url : &Url) -> Game {
+    if _url.path().contains("hkrpg") {
+        return Game::HSR;
+    } else if _url.path().contains("genshin") {
+        return Game::Genshin;
+    }
+    return Game::Unsupported;
+}
+
+pub fn build_data_url(history_url: impl AsRef<str>) -> Option<String> {
     let Some(query) = history_url.as_ref().split("/index.html?").last() else {
         return None;
     };
+    match Url::parse(history_url.as_ref()) {
+        Ok(base_url) => {
+            #[inline]
+            fn get_gacha_type<'a>(query: &'a str, key: &str) -> Option<&'a str> {
+                // Split arguments string by key get request
+                query.split(key)
 
-    #[inline]
-    fn get_gacha_type<'a>(query: &'a str, key: &str) -> Option<&'a str> {
-        // Split arguments string by key get request
-        query.split(key)
+                    // Take second value (something&key=[value]&something)
+                    .nth(1)
 
-            // Take second value (something&key=[value]&something)
-            .nth(1)
+                    // And split this value again by & and take the first part
+                    // If there weren't & - then we'll get the value itself.
+                    // Otherwise only needed query value
+                    .and_then(|value| value.split('&').next())
+            }
+            let mut _url = base_url.clone();
+            match get_game(&_url) {
+                Game::Genshin => get_gacha_type(query, "init_type=")
+                    .map(|value| format!("https://hk4e-api-os.hoyoverse.com/event/gacha_info/api/getGachaLog?{query}&gacha_type={value}")),
 
-            // And split this value again by & and take the first part
-            // If there weren't & - then we'll get the value itself.
-            // Otherwise only needed query value
-            .and_then(|value| value.split('&').next())
-    }
+                Game::HSR => get_gacha_type(query, "default_gacha_type=")
+                    .map(|value| format!("https://api-os-takumi.mihoyo.com/common/gacha_record/api/getGachaLog?{query}&gacha_type={value}")),
 
-    match game {
-        Game::Genshin => get_gacha_type(query, "init_type=")
-            .map(|value| format!("https://hk4e-api-os.hoyoverse.com/event/gacha_info/api/getGachaLog?{query}&gacha_type={value}")),
-
-        Game::HSR => get_gacha_type(query, "default_gacha_type=")
-            .map(|value| format!("https://api-os-takumi.mihoyo.com/common/gacha_record/api/getGachaLog?{query}&gacha_type={value}"))
+                Game::Unsupported => {
+                    panic!("Unsupported game. FOH.")
+                }
+            }
+        }
+        Err(_) => {
+            None
+        }
     }
 }

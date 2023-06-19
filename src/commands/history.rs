@@ -4,6 +4,7 @@ use clap::Args;
 
 use crate::url::parse_wishes_urls;
 use glob::glob;
+use colored::Colorize;
 
 #[derive(Args)]
 pub struct HistoryArgs {
@@ -20,7 +21,7 @@ pub struct HistoryArgs {
     /// 
     /// If reversed order enabled, then the oldest URL will be opened.
     /// Otherwise the most recent one
-    pub open_first_url: bool,
+    pub open_url: bool,
 
     #[arg(short, long, default_value_t = 3)]
     /// Maximal number of URLs to return
@@ -30,7 +31,7 @@ pub struct HistoryArgs {
 impl HistoryArgs {
     pub fn execute(&self) -> anyhow::Result<()> {
         if !self.game_path.exists() {
-            anyhow::bail!("Given game path doesn't exist");
+            anyhow::bail!("{}", "Given game path doesn't exist".bold().red());
         }
 
         // Iterate over game installation files and folders
@@ -41,11 +42,15 @@ impl HistoryArgs {
                 Err(_) => {},
                 Ok(path) => {
                     if path.exists() {
-                        println!("[#] Data file: {}", path.to_string_lossy());
+                        eprintln!("{} {}: {}",
+                                  "[#]".cyan().bold(),
+                                  "Data file".green().bold(),
+                                  path.to_string_lossy().yellow()
+                        );
 
                         match parse_wishes_urls(path) {
                             Ok(urls) if urls.is_empty() => {
-                                eprintln!("No wishes URL found");
+                                anyhow::bail!("{}", "No wishes URL found".red().bold());
                             }
 
                             Ok(mut urls) => {
@@ -53,27 +58,18 @@ impl HistoryArgs {
                                 if self.reverse_order {
                                     urls = urls.into_iter().rev().collect();
                                 }
-
-                                // Limit returning urls
-                                urls = urls[..self.max_return_num].to_vec();
-
                                 // Open the first found URL
-                                if self.open_first_url {
+                                if self.open_url {
                                     open::that(&urls[0])?;
                                 }
-
-                                // And print found URLs
-                                for url in urls {
-                                    // TODO: it's possible to print here banner type and some other
-                                    //       metadata.
-                                    //       Don't print links with outdated API keys as well.
-                                    println!("    - {url}");
-
-                                    // Open found url if required
-                                    // if cli.open_url {
-                                    //     open::that(url)?;
-                                    // }
-                                }
+                                // And print found URL
+                                // TODO: Look into further ways to present the data
+                                //          - Daemon running in the background of a launcher?
+                                //            (implies this library gets a daemonizable mode)
+                                //          - Static generation of a wish history list?
+                                // TODO: Look into data persistence in %USERDIR%/anime-game-data
+                                // TODO: Look into non-miHoYo games support when possible
+                                println!("{}", urls[0]);
                             }
 
                             Err(err) => eprintln!("Failed to parse wishes URLs: {err}")
