@@ -26,9 +26,14 @@ pub struct DataArgs {
     #[arg(short = 'p', long)]
     /// Path to the game installation
     pub game_path: PathBuf,
+
     #[arg(short = 'i', long, default_value_t = false)]
-    /// Ignore cache
+    /// Ignore existing cache when getting data
     pub ignore_cache: bool,
+
+    #[arg(short = 's', long, default_value_t = false)]
+    /// Do not write new cache to storage
+    pub skip_write_cache: bool,
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -44,7 +49,7 @@ pub enum Game {
     HSR,     /// 1: Permanent; 2: Beginner; 1x: Event; 11: Character; 12: Weapon
 
     /// Unsupported
-    Unsupported
+    Unsupported,
 }
 
 impl DataArgs {
@@ -64,7 +69,9 @@ impl DataArgs {
                                 anyhow::bail!("{}", "No wishes URL found".red().bold());
                             }
                             Ok(urls) => {
-                                let (acc, meta, url) = fetch_data( urls[0].clone(), self.ignore_cache);
+                                let (acc, meta, url) = fetch_data(
+                                    urls[0].clone(), self.ignore_cache, self.skip_write_cache
+                                );
                                 eprintln!(
                                     "---\n{}\n",
                                     "JSON".bold().green()
@@ -206,7 +213,9 @@ fn load_local_cache_if_exists(game: Game, uid: &String, gacha_type: &String, ign
     return json::JsonValue::Null;
 }
 
-pub fn fetch_data(_url: String, ignore_cache: bool) -> (json::JsonValue, json::JsonValue, String) {
+pub fn fetch_data(_url: String, ignore_cache: bool, skip_write_cache: bool)
+    -> (json::JsonValue, json::JsonValue, String)
+{
     let (game, url, gacha_type) = build_data_url(_url).unwrap();
     let mut acc: json::JsonValue = json::JsonValue::new_array();
     let mut meta: json::JsonValue = json::JsonValue::new_object();
@@ -240,7 +249,7 @@ pub fn fetch_data(_url: String, ignore_cache: bool) -> (json::JsonValue, json::J
     spinner.success("Done!");
 
     // 4. Write to storage.
-    if !ignore_cache {
+    if !skip_write_cache {
         write_to_local_cache(game, &_uid, &gacha_type, &acc);
     }
 
