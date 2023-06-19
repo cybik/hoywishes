@@ -9,6 +9,7 @@ use std::time::Duration;
 use json;
 use glob::glob;
 use colored::Colorize;
+use spinoff::{Spinner, spinners, Color};
 
 #[derive(Args)]
 pub struct DataArgs {
@@ -47,7 +48,14 @@ impl DataArgs {
                                 anyhow::bail!("{}", "No wishes URL found".red().bold());
                             }
                             Ok(urls) => {
-                                fetch_data_recursive( build_data_url(urls[0].clone()).unwrap());
+                                let acc : json::JsonValue;
+                                let meta : json::JsonValue;
+                                (acc, meta) = fetch_data_recursive( build_data_url(urls[0].clone()).unwrap());
+                                println!(
+                                    "{}:\n{}\n{}:\n{}",
+                                    "JSON".bold().green(), acc.pretty(2),
+                                    "Metadata".bold().green(), meta.pretty(2)
+                                );
                             }
                             Err(err) => eprintln!("Failed to parse wishes URLs: {err}")
                         }
@@ -79,7 +87,9 @@ fn fetch_data_rec(
             .unwrap().text().unwrap().as_str()
     ).unwrap()["data"].clone();
     let count = (*meta)["list"].len();
-    for i in 0..count { acc.push((*meta)["list"][i].clone()).expect("Bonk"); }
+    for i in 0..count {
+        acc.push((*meta)["list"][i].clone()).expect("Bonk");
+    }
     sleep(Duration::from_secs(2));
     if count == szgate {
         fetch_data_rec(
@@ -98,18 +108,17 @@ fn fetch_data_rec(
     }
 }
 
-pub fn fetch_data_recursive(url: String) -> Result<(), Box<dyn std::error::Error>> {
-    let mut acc : json::JsonValue = json::JsonValue::new_array();
-    let mut meta : json::JsonValue = json::JsonValue::new_object();
+pub fn fetch_data_recursive(url: String)
+    -> (json::JsonValue, json::JsonValue )
+{
+    let mut acc: json::JsonValue = json::JsonValue::new_array();
+    let mut meta: json::JsonValue = json::JsonValue::new_object();
+    let spinner: Spinner = Spinner::new(spinners::Dots8bit, "Fetching...", Color::Yellow);
+
     fetch_data_rec(
         &mut acc, &mut meta,
         url, 1, 5, String::from("0")
     );
-
-    println!(
-        "{}:\n{}\n{}:\n{}",
-         "JSON".bold().green(), acc.pretty(2),
-         "Metadata".bold().green(), meta.pretty(2)
-    );
-    Ok(())
+    spinner.success("Done");
+    return (acc, meta);
 }

@@ -22,3 +22,4 @@ open = "4.1.0"
 colored = "2"
 url = { version = "2", features = ["serde"] }
 copypasta-ext = "0.4.4"
+spinoff = "0.7.0"
