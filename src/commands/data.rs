@@ -225,7 +225,7 @@ pub fn fetch_data(_url: String, ignore_cache: bool, skip_write_cache: bool)
     // 0. Which fucking game.
     // 1. Run it once, get the UID.
     spinner = Spinner::new_with_stream(
-        spinners::Dots, "Fetching Once...", Color::Yellow, Streams::Stderr
+        spinners::Dots, "Fetching Metadata...", Color::Yellow, Streams::Stderr
     );
     let _uid = fetch_data_rec_once(
         &mut acc, &mut meta, url.clone(), &gacha_type
