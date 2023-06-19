@@ -82,11 +82,11 @@ fn urlgen(url: String, gacha_type: String, szgate: usize, page: u8, end_id: Stri
 
 fn fetch_data_rec(
     acc: &mut json::JsonValue, meta: &mut json::JsonValue, cache: json::JsonValue,
-    url: String, gacha_type: &String, page: u8, szgate: usize, end_id: String
+    url: String, gacha_type: &String, page: u8, szgate: usize, end_id: String, skip_cache: bool
 ) -> String {
     return fetch_data_rec_priv(
         acc, meta, cache,
-        url, gacha_type, page, szgate, end_id, false
+        url, gacha_type, page, szgate, end_id, false, skip_cache
     );
 }
 
@@ -96,7 +96,8 @@ fn fetch_data_rec_once(
 ) -> String {
     let _ = fetch_data_rec_priv(
         acc, meta, json::JsonValue::Null,
-        url, gacha_type, 1, 1, String::from("0"), true
+        url, gacha_type, 1, 1, String::from("0"),
+        true, true
     );
     acc.clear(); // Reset.
     return meta["uid"].clone().to_string();
@@ -104,7 +105,8 @@ fn fetch_data_rec_once(
 
 fn fetch_data_rec_priv(
     acc: &mut json::JsonValue, meta: &mut json::JsonValue, cache: json::JsonValue,
-    url: String, gacha_type: &String, page: u8, szgate: usize, end_id: String, run_only_once: bool
+    url: String, gacha_type: &String, page: u8, szgate: usize, end_id: String,
+    run_only_once: bool, skip_cache: bool
 ) -> String {
     let mut cache_hit = false; // will sort out.
     let req_url = urlgen(url.clone(), gacha_type.clone(), szgate, page, end_id);
@@ -116,10 +118,11 @@ fn fetch_data_rec_priv(
         // cache_hit = true;
         if cache != json::JsonValue::Null {
             if elem["id"] == cache[0]["id"] {
-                println!("{}: {}",
-                         "STUB".bold().bright_green(),
-                         "HIT HIT HIT HIT HIT.".bright_yellow()
-                );
+                // The data from the server is ALWAYS from the most recent to the oldest.
+                //  The cache follows the same order. So if the cache's first element is
+                //  the same as a given element being processed, we can assume the rest
+                //  of the data would be the same. Thus, from that point, load from cache
+                //  directly, skip validation, and exit early.
                 for elem_cache in cache.members() {
                     acc.push(elem_cache.clone()).expect("Could not copy from cache");
                 }
@@ -142,9 +145,10 @@ fn fetch_data_rec_priv(
         return req_url.clone();
     }
     if !run_only_once { sleep(Duration::from_secs(2)); }
-    return fetch_data_rec(
+    return fetch_data_rec_priv(
         acc, meta, cache, url, gacha_type,
-        page + 1, szgate, String::from(acc[acc.len() - 1]["id"].as_str().unwrap())
+        page + 1, szgate, String::from(acc[acc.len() - 1]["id"].as_str().unwrap()),
+        run_only_once, skip_cache
     );
 }
 
@@ -203,7 +207,9 @@ pub fn fetch_data_recursive(_url: String) -> (json::JsonValue, json::JsonValue, 
     let final_url = fetch_data_rec(
         &mut acc, &mut meta, acc_local,
         url.clone(), &gacha_type,
-        1, 5, String::from("0")
+        1, 5, String::from("0"),
+        false // TODO: implement skip_cache argument to ignore cache.
+                        //        Cache corruption and user option can happen.
     );
     spinner.success("Done!");
 
