@@ -3,6 +3,7 @@ use std::fs::{OpenOptions};
 use std::io::Write;
 use crate::url::{build_data_url, parse_wishes_urls};
 
+use strum::Display;
 extern crate reqwest;
 
 use std::path::PathBuf;
@@ -13,7 +14,7 @@ use json;
 use glob::glob;
 use colored::Colorize;
 use directories::ProjectDirs;
-use spinoff::{Spinner, spinners, Color};
+use spinoff::{Spinner, spinners, Color, Streams};
 
 #[derive(Args)]
 pub struct DataArgs {
@@ -23,12 +24,15 @@ pub struct DataArgs {
 }
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Clone, Copy, ValueEnum)]
+#[derive(Clone, Copy, ValueEnum, Display)]
 pub enum Game {
     /// Genshin Impact
+
+    #[strum(serialize = "yuanshen")]
     Genshin, /// 100: Beginner; 200: Permanent; 3xx: Event; 301: Character; 302: Weapon;
 
     /// Honkai: Star Rail
+    #[strum(serialize = "hkrpg")]
     HSR,     /// 1: Permanent; 2: Beginner; 1x: Event; 11: Character; 12: Weapon
 
     /// Unsupported
@@ -52,10 +56,14 @@ impl DataArgs {
                                 anyhow::bail!("{}", "No wishes URL found".red().bold());
                             }
                             Ok(urls) => {
-                                let (acc, meta, url) = fetch_data_recursive( urls[0].clone());
-                                println!(
-                                    "---\n{}\n{}\n---\n{}:\n{}\n---\n{}:\n{}",
-                                    "JSON".bold().green(), acc.pretty(2),
+                                let (acc, meta, url) = fetch_data( urls[0].clone());
+                                eprintln!(
+                                    "---\n{}\n",
+                                    "JSON".bold().green()
+                                );
+                                println!("{}", acc.pretty(2));
+                                eprintln!(
+                                    "---\n{}:\n{}\n---\n{}:\n{}",
                                     "Metadata".bold().green(), meta.pretty(2),
                                     "Final Data Group URL".bold().green(), url
                                 );
@@ -152,15 +160,18 @@ fn fetch_data_rec_priv(
     );
 }
 
-fn generate_path(proj_dirs: ProjectDirs, uid: &String, gacha_type: &String) -> PathBuf {
-    return proj_dirs.data_local_dir().join(uid).join(gacha_type.to_owned()+".cache");
+fn generate_path(proj_dirs: ProjectDirs, game: Game, uid: &String, gacha_type: &String) -> PathBuf {
+    return proj_dirs.data_local_dir()
+                    .join(game.to_string())
+                    .join(uid)
+                    .join(gacha_type.to_owned()+".cache");
 }
 
-fn write_to_local_cache(uid: &String, gacha_type: &String, acc: &json::JsonValue) {
+fn write_to_local_cache(game: Game, uid: &String, gacha_type: &String, acc: &json::JsonValue) {
     if let Some(proj_dirs) = directories::ProjectDirs::from(
         "wishget", "moe.launcher",  "An Anime Game Wish Tracking Tool"
     ) {
-        let path = generate_path(proj_dirs,uid, gacha_type);
+        let path = generate_path(proj_dirs, game, uid, gacha_type);
         if !path.exists() {
             if !path.parent().unwrap().exists() {
                 fs::create_dir_all(path.parent().unwrap()).expect("Could not create cache dir.");
@@ -173,11 +184,11 @@ fn write_to_local_cache(uid: &String, gacha_type: &String, acc: &json::JsonValue
     }
 }
 
-fn load_local_cache_if_exists(uid: &String, gacha_type: &String) -> json::JsonValue {
+fn load_local_cache_if_exists(game: Game, uid: &String, gacha_type: &String) -> json::JsonValue {
     if let Some(proj_dirs) = directories::ProjectDirs::from(
         "wishget", "moe.launcher",  "An Anime Game Wish Tracking Tool"
     ) {
-        let path = generate_path(proj_dirs, uid, gacha_type);
+        let path = generate_path(proj_dirs, game, uid, gacha_type);
         if path.exists() {
             return json::parse(fs::read_to_string(path).unwrap().as_str()).unwrap();
         }
@@ -185,25 +196,30 @@ fn load_local_cache_if_exists(uid: &String, gacha_type: &String) -> json::JsonVa
     return json::JsonValue::Null;
 }
 
-pub fn fetch_data_recursive(_url: String) -> (json::JsonValue, json::JsonValue, String) {
-    let (url, gacha_type) = build_data_url(_url).unwrap();
+pub fn fetch_data(_url: String) -> (json::JsonValue, json::JsonValue, String) {
+    let (game, url, gacha_type) = build_data_url(_url).unwrap();
     let mut acc: json::JsonValue = json::JsonValue::new_array();
     let mut meta: json::JsonValue = json::JsonValue::new_object();
     let mut spinner : Spinner;
 
     // Sequence
+    // 0. Which fucking game.
     // 1. Run it once, get the UID.
-    spinner = Spinner::new(spinners::Dots, "Fetching Once...", Color::Yellow);
+    spinner = Spinner::new_with_stream(
+        spinners::Dots, "Fetching Once...", Color::Yellow, Streams::Stderr
+    );
     let _uid = fetch_data_rec_once(
         &mut acc, &mut meta, url.clone(), &gacha_type
     );
     spinner.success("Metadata processed.");
 
     // 2. Load the local cache, if it exists
-    let acc_local = load_local_cache_if_exists(&_uid, &gacha_type);
+    let acc_local = load_local_cache_if_exists(game, &_uid, &gacha_type);
 
     // 3. Run it.
-    spinner = Spinner::new(spinners::Dots8bit, "Fetching Data...", Color::Yellow);
+    spinner = Spinner::new_with_stream(
+        spinners::Dots8bit, "Fetching Data...", Color::Yellow, Streams::Stderr
+    );
     let final_url = fetch_data_rec(
         &mut acc, &mut meta, acc_local,
         url.clone(), &gacha_type,
@@ -214,7 +230,7 @@ pub fn fetch_data_recursive(_url: String) -> (json::JsonValue, json::JsonValue, 
     spinner.success("Done!");
 
     // 4. Write to storage.
-    write_to_local_cache(&_uid, &gacha_type, &acc);
+    write_to_local_cache(game, &_uid, &gacha_type, &acc);
 
     return (acc, meta, final_url);
 }

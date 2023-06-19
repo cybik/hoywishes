@@ -32,3 +32,4 @@ copypasta-ext = "0.4.4"
 spinoff = "0.7.0"
 
 directories = "5.0"
+strum = { version = "0.25", features = ["derive"] }
