@@ -43,7 +43,7 @@ fn get_game(_url : &Url) -> Game {
     return Game::Unsupported;
 }
 
-pub fn build_data_url(history_url: impl AsRef<str>) -> Option<String> {
+pub fn build_data_url(history_url: impl AsRef<str>) -> Option<(String, String)> {
     let Some(query) = history_url.as_ref().split("/index.html?").last() else {
         return None;
     };
@@ -65,10 +65,10 @@ pub fn build_data_url(history_url: impl AsRef<str>) -> Option<String> {
             let mut _url = base_url.clone();
             match get_game(&_url) {
                 Game::Genshin => get_gacha_type(query, "init_type=")
-                    .map(|value| format!("https://hk4e-api-os.hoyoverse.com/event/gacha_info/api/getGachaLog?{query}&gacha_type={value}")),
+                    .map(|value| (format!("https://hk4e-api-os.hoyoverse.com/event/gacha_info/api/getGachaLog?{query}"), String::from(value))),
 
                 Game::HSR => get_gacha_type(query, "default_gacha_type=")
-                    .map(|value| format!("https://api-os-takumi.mihoyo.com/common/gacha_record/api/getGachaLog?{query}&gacha_type={value}")),
+                    .map(|value| (format!("https://api-os-takumi.mihoyo.com/common/gacha_record/api/getGachaLog?{query}"), String::from(value))),
 
                 Game::Unsupported => {
                     panic!("Unsupported game. FOH.")
