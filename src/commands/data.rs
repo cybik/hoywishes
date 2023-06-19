@@ -1,3 +1,6 @@
+use std::fs;
+use std::fs::{OpenOptions};
+use std::io::Write;
 use crate::url::{build_data_url, parse_wishes_urls};
 
 extern crate reqwest;
@@ -9,6 +12,7 @@ use std::time::Duration;
 use json;
 use glob::glob;
 use colored::Colorize;
+use directories::ProjectDirs;
 use spinoff::{Spinner, spinners, Color};
 
 #[derive(Args)]
@@ -77,38 +81,58 @@ fn urlgen(url: String, gacha_type: String, szgate: usize, page: u8, end_id: Stri
 }
 
 fn fetch_data_rec(
-    acc: &mut json::JsonValue, meta: &mut json::JsonValue,
+    acc: &mut json::JsonValue, meta: &mut json::JsonValue, cache: json::JsonValue,
     url: String, gacha_type: &String, page: u8, szgate: usize, end_id: String
 ) -> String {
-    return fetch_data_rec_priv(acc,meta,url,gacha_type, page,szgate,end_id, false);
+    return fetch_data_rec_priv(
+        acc, meta, cache,
+        url, gacha_type, page, szgate, end_id, false
+    );
 }
 
 fn fetch_data_rec_once(
     acc: &mut json::JsonValue, meta: &mut json::JsonValue,
     url: String, gacha_type: &String
 ) -> String {
-    let _ = fetch_data_rec_priv(acc, meta, url, gacha_type, 1, 1, String::from("0"), true);
+    let _ = fetch_data_rec_priv(
+        acc, meta, json::JsonValue::Null,
+        url, gacha_type, 1, 1, String::from("0"), true
+    );
     acc.clear(); // Reset.
     return meta["uid"].clone().to_string();
 }
 
 fn fetch_data_rec_priv(
-    acc: &mut json::JsonValue, meta: &mut json::JsonValue,
+    acc: &mut json::JsonValue, meta: &mut json::JsonValue, cache: json::JsonValue,
     url: String, gacha_type: &String, page: u8, szgate: usize, end_id: String, run_only_once: bool
 ) -> String {
+    let mut cache_hit = false; // will sort out.
     let req_url = urlgen(url.clone(), gacha_type.clone(), szgate, page, end_id);
     (*meta) = json::parse(
         reqwest::blocking::get(req_url.as_str()).unwrap().text().unwrap().as_str()
     ).unwrap()["data"].clone();
-    let count = meta["list"].len();
-    for i in 0..count {
-        acc.push(meta["list"][i].clone()).expect("Bonk");
+    for elem in meta["list"].members() {
+        // if elem["id"] in all the ids of the loaded cache
+        // cache_hit = true;
+        if cache != json::JsonValue::Null {
+            if elem["id"] == cache[0]["id"] {
+                println!("{}: {}",
+                         "STUB".bold().bright_green(),
+                         "HIT HIT HIT HIT HIT.".bright_yellow()
+                );
+                for elem_cache in cache.members() {
+                    acc.push(elem_cache.clone()).expect("Could not copy from cache");
+                }
+                cache_hit = true;
+                break;
+            }
+        }
+        acc.push(elem.clone()).expect("Bonk");
     }
-    if !run_only_once { sleep(Duration::from_secs(2)); }
-    if (count != szgate) || run_only_once {
+    if (meta["list"].len() != szgate) || run_only_once || cache_hit {
         // Final Recursion.
-        meta["uid"] = json::JsonValue::from(acc[acc.len() - 1]["uid"].as_str());
-        meta["gacha_type"] = json::JsonValue::from(acc[acc.len() - 1]["gacha_type"].as_str());
+        meta["uid"] = json::JsonValue::from(acc.members().last().unwrap()["uid"].as_str());
+        meta["gacha_type"] = json::JsonValue::from(acc.members().last().unwrap()["gacha_type"].as_str());
         meta["total"] = json::JsonValue::from(acc.len());
 
         // Cleanup.
@@ -117,10 +141,44 @@ fn fetch_data_rec_priv(
         meta.remove("list");
         return req_url.clone();
     }
+    if !run_only_once { sleep(Duration::from_secs(2)); }
     return fetch_data_rec(
-        acc, meta, url, gacha_type,
+        acc, meta, cache, url, gacha_type,
         page + 1, szgate, String::from(acc[acc.len() - 1]["id"].as_str().unwrap())
     );
+}
+
+fn generate_path(proj_dirs: ProjectDirs, uid: &String, gacha_type: &String) -> PathBuf {
+    return proj_dirs.data_local_dir().join(uid).join(gacha_type.to_owned()+".cache");
+}
+
+fn write_to_local_cache(uid: &String, gacha_type: &String, acc: &json::JsonValue) {
+    if let Some(proj_dirs) = directories::ProjectDirs::from(
+        "wishget", "moe.launcher",  "An Anime Game Wish Tracking Tool"
+    ) {
+        let path = generate_path(proj_dirs,uid, gacha_type);
+        if !path.exists() {
+            if !path.parent().unwrap().exists() {
+                fs::create_dir_all(path.parent().unwrap()).expect("Could not create cache dir.");
+            }
+        }
+        write!(
+            OpenOptions::new().truncate(true).write(true).create(true).open(path).unwrap(),
+            "{}", acc.pretty(2)
+        ).expect("boom");
+    }
+}
+
+fn load_local_cache_if_exists(uid: &String, gacha_type: &String) -> json::JsonValue {
+    if let Some(proj_dirs) = directories::ProjectDirs::from(
+        "wishget", "moe.launcher",  "An Anime Game Wish Tracking Tool"
+    ) {
+        let path = generate_path(proj_dirs, uid, gacha_type);
+        if path.exists() {
+            return json::parse(fs::read_to_string(path).unwrap().as_str()).unwrap();
+        }
+    }
+    return json::JsonValue::Null;
 }
 
 pub fn fetch_data_recursive(_url: String) -> (json::JsonValue, json::JsonValue, String) {
@@ -138,23 +196,19 @@ pub fn fetch_data_recursive(_url: String) -> (json::JsonValue, json::JsonValue, 
     spinner.success("Metadata processed.");
 
     // 2. Load the local cache, if it exists
-    println!("{}: {}",
-            "STUB".bold().bright_green(),
-            "UID-based cache is unimplemented.".bright_yellow()
-    );
-    println!("{}: {} {}",
-             "STUB".bold().bright_green(),
-             "Retrieved UID is".bright_yellow(),
-             meta["uid"].to_string().bright_yellow()
-    );
+    let acc_local = load_local_cache_if_exists(&_uid, &gacha_type);
 
     // 3. Run it.
     spinner = Spinner::new(spinners::Dots8bit, "Fetching Data...", Color::Yellow);
     let final_url = fetch_data_rec(
-        &mut acc, &mut meta,
+        &mut acc, &mut meta, acc_local,
         url.clone(), &gacha_type,
         1, 5, String::from("0")
     );
     spinner.success("Done!");
+
+    // 4. Write to storage.
+    write_to_local_cache(&_uid, &gacha_type, &acc);
+
     return (acc, meta, final_url);
 }
