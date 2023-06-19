@@ -78,23 +78,40 @@ fn urlgen(url: String, gacha_type: String, szgate: usize, page: u8, end_id: Stri
 
 fn fetch_data_rec(
     acc: &mut json::JsonValue, meta: &mut json::JsonValue,
-    url: String, gacha_type: String, page: u8, szgate: usize, end_id: String
+    url: String, gacha_type: &String, page: u8, szgate: usize, end_id: String
+) -> String {
+    return fetch_data_rec_priv(acc,meta,url,gacha_type, page,szgate,end_id, false);
+}
+
+fn fetch_data_rec_once(
+    acc: &mut json::JsonValue, meta: &mut json::JsonValue,
+    url: String, gacha_type: &String
+) -> String {
+    let _ = fetch_data_rec_priv(acc, meta, url, gacha_type, 1, 1, String::from("0"), true);
+    acc.clear(); // Reset.
+    return meta["uid"].clone().to_string();
+}
+
+fn fetch_data_rec_priv(
+    acc: &mut json::JsonValue, meta: &mut json::JsonValue,
+    url: String, gacha_type: &String, page: u8, szgate: usize, end_id: String, run_only_once: bool
 ) -> String {
     let req_url = urlgen(url.clone(), gacha_type.clone(), szgate, page, end_id);
-    (*meta) = json::parse(reqwest::blocking::get(req_url.as_str()).unwrap().text().unwrap().as_str()
+    (*meta) = json::parse(
+        reqwest::blocking::get(req_url.as_str()).unwrap().text().unwrap().as_str()
     ).unwrap()["data"].clone();
     let count = meta["list"].len();
     for i in 0..count {
         acc.push(meta["list"][i].clone()).expect("Bonk");
     }
-    sleep(Duration::from_secs(2));
-    if count != szgate {
+    if !run_only_once { sleep(Duration::from_secs(2)); }
+    if (count != szgate) || run_only_once {
         // Final Recursion.
         meta["uid"] = json::JsonValue::from(acc[acc.len() - 1]["uid"].as_str());
         meta["gacha_type"] = json::JsonValue::from(acc[acc.len() - 1]["gacha_type"].as_str());
         meta["total"] = json::JsonValue::from(acc.len());
 
-        // Last call: clean these up
+        // Cleanup.
         meta.remove("page");
         meta.remove("size");
         meta.remove("list");
@@ -110,13 +127,34 @@ pub fn fetch_data_recursive(_url: String) -> (json::JsonValue, json::JsonValue, 
     let (url, gacha_type) = build_data_url(_url).unwrap();
     let mut acc: json::JsonValue = json::JsonValue::new_array();
     let mut meta: json::JsonValue = json::JsonValue::new_object();
-    let spinner: Spinner = Spinner::new(spinners::Dots8bit, "Fetching...", Color::Yellow);
+    let mut spinner : Spinner;
 
+    // Sequence
+    // 1. Run it once, get the UID.
+    spinner = Spinner::new(spinners::Dots, "Fetching Once...", Color::Yellow);
+    let _uid = fetch_data_rec_once(
+        &mut acc, &mut meta, url.clone(), &gacha_type
+    );
+    spinner.success("Metadata processed.");
+
+    // 2. Load the local cache, if it exists
+    println!("{}: {}",
+            "STUB".bold().bright_green(),
+            "UID-based cache is unimplemented.".bright_yellow()
+    );
+    println!("{}: {} {}",
+             "STUB".bold().bright_green(),
+             "Retrieved UID is".bright_yellow(),
+             meta["uid"].to_string().bright_yellow()
+    );
+
+    // 3. Run it.
+    spinner = Spinner::new(spinners::Dots8bit, "Fetching Data...", Color::Yellow);
     let final_url = fetch_data_rec(
         &mut acc, &mut meta,
-        url.clone(), gacha_type,
+        url.clone(), &gacha_type,
         1, 5, String::from("0")
     );
-    spinner.success("Done");
+    spinner.success("Done!");
     return (acc, meta, final_url);
 }
