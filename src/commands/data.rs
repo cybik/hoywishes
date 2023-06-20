@@ -34,6 +34,10 @@ pub struct DataArgs {
     #[arg(short = 's', long, default_value_t = false)]
     /// Do not write new cache to storage
     pub skip_write_cache: bool,
+
+    #[arg(short = 'a', long, default_value_t = false)]
+    /// Process all known banner types
+    pub process_all_banners: bool,
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -46,10 +50,34 @@ pub enum Game {
 
     /// Honkai: Star Rail
     #[strum(serialize = "hkrpg")]
-    HSR,     /// 1: Permanent; 2: Beginner; 1x: Event; 11: Character; 12: Weapon
+    HSR,     /// 1:  Permanent; 2: Beginner;    1x: Event;  11: Character;  12: Weapon
 
     /// Unsupported
     Unsupported,
+}
+
+fn get_list_of_gacha_types(game: Game, first_type: &String, process_all: bool) -> Vec<String> {
+    let mut ret_vec : Vec<String> = [first_type.clone()].to_vec();
+    if process_all {
+        match game {
+            Game::Genshin => {
+                for el in ["100", "200", "301", "302"] {
+                    if !ret_vec[0].eq(el) {
+                        ret_vec.push(el.to_string());
+                    }
+                }
+            }
+            Game::HSR => {
+                for el in ["1", "2", "11", "12"] {
+                    if !ret_vec[0].eq(el) {
+                        ret_vec.push(el.to_string());
+                    }
+                }
+            }
+            Game::Unsupported => panic!("Why even")
+        }
+    }
+    return ret_vec.to_vec();
 }
 
 impl DataArgs {
@@ -69,19 +97,20 @@ impl DataArgs {
                                 anyhow::bail!("{}", "No wishes URL found".red().bold());
                             }
                             Ok(urls) => {
-                                let (acc, meta, url) = fetch_data(
-                                    urls[0].clone(), self.ignore_cache, self.skip_write_cache
+                                let urlses = fetch_data(
+                                    urls[0].clone(),
+                                    self.ignore_cache, self.skip_write_cache, self.process_all_banners
                                 );
                                 eprintln!(
-                                    "---\n{}\n",
-                                    "JSON".bold().green()
+                                    "---\n{}",
+                                    "Final Data Group URLs".bold().green()
                                 );
-                                println!("{}", acc.pretty(2));
-                                eprintln!(
-                                    "---\n{}:\n{}\n---\n{}:\n{}",
-                                    "Metadata".bold().green(), meta.pretty(2),
-                                    "Final Data Group URL".bold().green(), url
-                                );
+                                for url in urlses {
+                                    eprintln!(
+                                        "- {}",
+                                        url
+                                    );
+                                }
                             }
                             Err(err) => eprintln!("Failed to parse wishes URLs: {err}")
                         }
@@ -157,8 +186,12 @@ fn fetch_data_rec_priv(
     }
     if (meta["list"].len() != szgate) || run_only_once || cache_hit {
         // Final Recursion.
-        meta["uid"] = json::JsonValue::from(acc.members().last().unwrap()["uid"].as_str());
-        meta["gacha_type"] = json::JsonValue::from(acc.members().last().unwrap()["gacha_type"].as_str());
+        if acc.members().len() == 0 {
+            meta["uid"] = json::JsonValue::from("-1");
+        } else {
+            meta["uid"] = json::JsonValue::from(acc.members().last().unwrap()["uid"].as_str());
+        }
+        meta["gacha_type"] = json::JsonValue::from(gacha_type.clone());
         meta["total"] = json::JsonValue::from(acc.len());
 
         // Cleanup.
@@ -204,54 +237,67 @@ fn load_local_cache_if_exists(game: Game, uid: &String, gacha_type: &String, ign
         if let Some(proj_dirs) = directories::ProjectDirs::from(
             QAL, ORG,  WTT
         ) {
-            let path = generate_path(proj_dirs, game, uid, gacha_type);
-            if path.exists() {
-                return json::parse(fs::read_to_string(path).unwrap().as_str()).unwrap();
+            if !uid.contains("-1") {
+                let path = generate_path(proj_dirs, game, uid, gacha_type);
+                if path.exists() {
+                    return json::parse(fs::read_to_string(path).unwrap().as_str()).unwrap();
+                }
             }
         }
     }
     return json::JsonValue::Null;
 }
 
-pub fn fetch_data(_url: String, ignore_cache: bool, skip_write_cache: bool)
-    -> (json::JsonValue, json::JsonValue, String)
+pub fn fetch_data(_url: String, ignore_cache: bool, skip_write_cache: bool, process_all: bool)
+    -> Vec<String>
 {
-    let (game, url, gacha_type) = build_data_url(_url).unwrap();
-    let mut acc: json::JsonValue = json::JsonValue::new_array();
-    let mut meta: json::JsonValue = json::JsonValue::new_object();
-    let mut spinner : Spinner;
+    let (game, url, _gacha_type) = build_data_url(_url).unwrap();
+    let _vec_banners = get_list_of_gacha_types(game, &_gacha_type, process_all);
+    let mut _vec_urls : Vec<String> = Vec::new();
+    for gacha_type in _vec_banners {
+        let mut acc: json::JsonValue = json::JsonValue::new_array();
+        let mut meta: json::JsonValue = json::JsonValue::new_object();
+        let mut spinner: Spinner;
 
-    // Sequence
-    // 0. Which fucking game.
-    // 1. Run it once, get the UID.
-    spinner = Spinner::new_with_stream(
-        spinners::Dots, "Fetching Metadata...", Color::Yellow, Streams::Stderr
-    );
-    let _uid = fetch_data_rec_once(
-        &mut acc, &mut meta, url.clone(), &gacha_type
-    );
-    spinner.success("Metadata processed.");
+        // Sequence
+        // 0. Which fucking game.
+        // 1. Run it once, get the UID.
+        spinner = Spinner::new_with_stream(
+            spinners::Dots,
+            "Fetching Metadata...",
+            Color::Yellow,
+            Streams::Stderr,
+        );
+        let _uid = fetch_data_rec_once(
+            &mut acc, &mut meta, url.clone(), &gacha_type,
+        );
+        spinner.success("Metadata processed.");
 
-    // 2. Load the local cache, if it exists
-    let acc_local = load_local_cache_if_exists(game, &_uid, &gacha_type, ignore_cache);
+        // 2. Load the local cache, if it exists
+        let acc_local = load_local_cache_if_exists(game, &_uid, &gacha_type, ignore_cache);
 
-    // 3. Run it.
-    spinner = Spinner::new_with_stream(
-        spinners::Dots8bit, "Fetching Data...", Color::Yellow, Streams::Stderr
-    );
-    let final_url = fetch_data_rec(
-        &mut acc, &mut meta, acc_local,
-        url.clone(), &gacha_type,
-        1, 5, String::from("0"),
-        ignore_cache // TODO: implement ignore_cache argument to ignore cache.
-                               //        Cache corruption and user option can happen.
-    );
-    spinner.success("Done!");
+        // 3. Run it.
+        spinner = Spinner::new_with_stream(
+            spinners::Dots8bit,
+            format!("Fetching Data for gacha_type {}...", gacha_type.clone()),
+            Color::Yellow, Streams::Stderr,
+        );
+        _vec_urls.push(
+            fetch_data_rec(
+                &mut acc, &mut meta, acc_local,
+                url.clone(), &gacha_type,
+                1, 5, String::from("0"),
+                ignore_cache, // TODO: implement ignore_cache argument to ignore cache.
+                //        Cache corruption and user option can happen.
+            )
+        );
+        spinner.success(format!("Fetched data for {} successfully!", gacha_type.clone()).as_str());
 
-    // 4. Write to storage.
-    if !skip_write_cache {
-        write_to_local_cache(game, &_uid, &gacha_type, &acc);
+        // 4. Write to storage.
+        if !skip_write_cache && !_uid.contains("-1") {
+            write_to_local_cache(game, &_uid, &gacha_type, &acc);
+        }
     }
 
-    return (acc, meta, final_url);
+    return _vec_urls;
 }
