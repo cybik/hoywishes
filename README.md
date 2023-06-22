@@ -7,3 +7,7 @@ Future: who knows?
 - Live website with easily clickable buttons to get the latest link
 - Data extraction based on the link itself (metadata obtainable)
 - Local wish data backup
+
+## TODO
+
+* URL-as-argument mode
