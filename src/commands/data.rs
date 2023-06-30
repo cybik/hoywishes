@@ -130,7 +130,7 @@ fn get_list_of_gacha_types(game: Game, first_type: &String, process_all: bool) -
             }
             Game::Unsupported => panic!("Why even")
         },
-        false => [first_type.clone()].to_vec()
+        false => [format!("{first_type}")].to_vec()
     }
 }
 
@@ -138,10 +138,10 @@ fn fetch_data_rec(
     acc: &mut json::JsonValue, meta: &mut json::JsonValue, cache: json::JsonValue,
     url: String, gacha_type: &String, page: u8, szgate: usize, end_id: String, ignore_cache: bool
 ) -> String {
-    return fetch_data_rec_priv(
+    fetch_data_rec_priv(
         acc, meta, cache,
         url, gacha_type, page, szgate, end_id, false, ignore_cache
-    );
+    )
 }
 
 fn fetch_data_rec_once(
@@ -154,7 +154,7 @@ fn fetch_data_rec_once(
         true, true
     );
     acc.clear(); // Reset.
-    return meta["uid"].clone().to_string();
+    meta["uid"].clone().to_string()
 }
 
 /// BEGZONE: https://users.rust-lang.org/t/how-to-remove-last-character-from-str/68607/2
@@ -197,9 +197,11 @@ fn fetch_data_rec_priv(
                 //  the same as a given element being processed, we can assume the rest
                 //  of the data would be the same. Thus, from that point, load from cache
                 //  directly, skip validation, and exit early.
-                for elem_cache in cache.members() {
-                    acc.push(elem_cache.clone()).expect("Could not copy from cache");
-                }
+                cache.members()
+                    .into_iter()
+                    .for_each(|member| {
+                        acc.push(member.clone()).expect("Could not copy from cache");
+                    });
                 cache_hit = true;
                 break;
             }
@@ -208,11 +210,11 @@ fn fetch_data_rec_priv(
     }
     if (meta["list"].len() != szgate) || run_only_once || cache_hit {
         // Final Recursion.
-        meta["uid"] = match  acc.members().len() == 0 {
-            true => json::JsonValue::from("-1"),
-            false => json::JsonValue::from(acc.members().last().unwrap()["uid"].as_str())
-        };
-        meta["gacha_type"] = json::JsonValue::from(gacha_type.clone());
+        meta["uid"] = json::JsonValue::from(
+            if acc.members().len() == 0 {"-1"}
+            else { acc.members().last().unwrap()["uid"].as_str().unwrap() }
+        );
+        meta["gacha_type"] = json::JsonValue::from(format!("{gacha_type}"));
         meta["total"] = json::JsonValue::from(acc.len());
 
         // Cleanup.
@@ -230,10 +232,10 @@ fn fetch_data_rec_priv(
 }
 
 fn generate_path(proj_dirs: ProjectDirs, game: Game, uid: &String, gacha_type: &String) -> PathBuf {
-    return proj_dirs.data_local_dir()
-            .join(game.to_string())
-            .join(uid)
-            .join(gacha_type.to_owned()+".cache");
+    proj_dirs.data_local_dir()
+        .join(game.to_string())
+        .join(uid)
+        .join(gacha_type.to_owned()+".cache")
 }
 
 fn write_to_local_cache(game: Game, uid: &String, gacha_type: &String, acc: &json::JsonValue) {
@@ -266,7 +268,7 @@ fn load_local_cache_if_exists(game: Game, uid: &String, gacha_type: &String, ign
             }
         }
     }
-    return json::JsonValue::Null;
+    json::JsonValue::Null
 }
 
 pub fn fetch_data(_url: String, ignore_cache: bool, skip_write_cache: bool, process_all: bool)
@@ -319,5 +321,5 @@ pub fn fetch_data(_url: String, ignore_cache: bool, skip_write_cache: bool, proc
             write_to_local_cache(game, &_uid, &gacha_type, &acc);
         }
     }
-    return _vec_urls;
+    _vec_urls
 }
