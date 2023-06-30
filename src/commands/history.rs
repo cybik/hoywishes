@@ -28,7 +28,7 @@ pub struct HistoryArgs {
 
     #[arg(short, long, default_value_t = 1)]
     /// Maximal number of URLs to return
-    pub max_return_num: usize
+    pub max_return_num: usize,
 }
 
 impl HistoryArgs {
@@ -45,10 +45,11 @@ impl HistoryArgs {
                 Err(_) => {},
                 Ok(path) => {
                     if path.exists() {
-                        eprintln!("{} {}: {}",
-                                  "[#]".cyan().bold(),
-                                  "Data file".green().bold(),
-                                  path.to_string_lossy().yellow()
+                        eprintln!(
+                            "{} {}: {}",
+                                "[#]".cyan().bold(),
+                                "Data file".green().bold(),
+                                path.to_string_lossy().yellow()
                         );
 
                         match parse_wishes_urls(path) {

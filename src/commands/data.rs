@@ -38,6 +38,10 @@ pub struct DataArgs {
     #[arg(short = 'a', long, default_value_t = false)]
     /// Process all known banner types
     pub process_all_banners: bool,
+
+    #[arg(short = 'k', long, required = false)]
+    /// URL from user, if known
+    pub known_url: String,
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -56,80 +60,70 @@ pub enum Game {
     Unsupported,
 }
 
-fn get_list_of_gacha_types(game: Game, first_type: &String, process_all: bool) -> Vec<String> {
-    let mut ret_vec : Vec<String> = [first_type.clone()].to_vec();
-    if process_all {
-        match game {
-            Game::Genshin => {
-                for el in ["100", "200", "301", "302"] {
-                    if !ret_vec[0].eq(el) {
-                        ret_vec.push(el.to_string());
-                    }
-                }
-            }
-            Game::HSR => {
-                for el in ["1", "2", "11", "12"] {
-                    if !ret_vec[0].eq(el) {
-                        ret_vec.push(el.to_string());
-                    }
-                }
-            }
-            Game::Unsupported => panic!("Why even")
-        }
-    }
-    return ret_vec.to_vec();
-}
-
 impl DataArgs {
     pub fn execute(&self) -> anyhow::Result<()> {
-        if !self.game_path.exists() {
-            anyhow::bail!("{}", "Given game path doesn't exist".bold().red());
-        }
-        let _filter = self.game_path.to_str().unwrap().to_owned() + "/**/webCaches/Cache/Cache_Data/data_2";
-        for data_path in glob(_filter.as_str()).expect("Failed to read glob pattern")
-        {
-            match data_path {
-                Err(_) => {},
-                Ok(path) => {
-                    if path.exists() {
-                        match parse_wishes_urls(path) {
-                            Ok(urls) if urls.is_empty() => {
-                                anyhow::bail!("{}", "No wishes URL found".red().bold());
-                            }
-                            Ok(urls) => {
-                                let urlses = fetch_data(
-                                    urls[0].clone(),
-                                    self.ignore_cache, self.skip_write_cache, self.process_all_banners
-                                );
-                                eprintln!(
-                                    "---\n{}",
-                                    "Final Data Group URLs".bold().green()
-                                );
-                                for url in urlses {
-                                    eprintln!(
-                                        "- {}",
-                                        url
-                                    );
+        if !self.known_url.is_empty() {
+            process_url(self.known_url.clone(), self);
+        } else {
+            if !self.game_path.exists() {
+                anyhow::bail!("{}", "Given game path doesn't exist".bold().red());
+            }
+            let _filter = self.game_path.to_str().unwrap().to_owned() + "/**/webCaches/Cache/Cache_Data/data_2";
+            for data_path in glob(_filter.as_str()).expect("Failed to read glob pattern")
+            {
+                match data_path {
+                    Err(_) => {},
+                    Ok(path) => {
+                        if path.exists() {
+                            match parse_wishes_urls(path) {
+                                Ok(urls) if urls.is_empty() => {
+                                    anyhow::bail!("{}", "No wishes URL found".red().bold());
                                 }
+                                Ok(urls) => {
+                                    process_url(urls[0].to_string(), self);
+                                }
+                                Err(err) => eprintln!("Failed to parse wishes URLs: {err}")
                             }
-                            Err(err) => eprintln!("Failed to parse wishes URLs: {err}")
+                            // One empty line to split series
+                            println!();
                         }
-
-                        // One empty line to split series
-                        println!();
                     }
                 }
             }
         }
-
         Ok(())
     }
 }
 
-fn urlgen(url: String, gacha_type: String, szgate: usize, page: u8, end_id: String) -> String {
-    let mut url_construct = url.clone();
-    url_construct += format!("&size={szgate}&page={page}&end_id={end_id}&gacha_type={gacha_type}").as_str();
-    return url_construct;
+// Functional Code.
+// TODO: RUSTify. This looks like "C++ enthusiast's first RUST code".
+fn process_url(url: String, args: &DataArgs) {
+    let urlses = fetch_data(
+        url.clone(),
+        args.ignore_cache, args.skip_write_cache, args.process_all_banners
+    );
+    eprintln!(
+        "---\n{}",
+        "Final Data Group URLs".bold().green()
+    );
+    for url in urlses {
+        eprintln!("- {}", url);
+    }
+}
+
+fn get_list_of_gacha_types(game: Game, first_type: &String, process_all: bool) -> Vec<String> {
+    match process_all {
+        true => match game {
+            Game::Genshin => {
+                [String::from("100"), String::from("200"), String::from("301"), String::from("302")].to_vec()
+            }
+            Game::HSR => {
+                [String::from("1"), String::from("2"), String::from("11"), String::from("12")].to_vec()
+            }
+            Game::Unsupported => panic!("Why even")
+        },
+        false => [first_type.clone()].to_vec()
+    }
 }
 
 fn fetch_data_rec(
@@ -153,6 +147,26 @@ fn fetch_data_rec_once(
     );
     acc.clear(); // Reset.
     return meta["uid"].clone().to_string();
+}
+
+/// BEGZONE: https://users.rust-lang.org/t/how-to-remove-last-character-from-str/68607/2
+trait RemoveLast {
+    fn remove_last(&self) -> &Self;
+}
+
+impl RemoveLast for str {
+    fn remove_last(&self) -> &Self {
+        self.strip_suffix(|_: char| true).unwrap_or(self)
+    }
+}
+/// ENDZONE:  https://users.rust-lang.org/t/how-to-remove-last-character-from-str/68607/2
+
+fn urlgen(url: String, gacha_type: String, szgate: usize, page: u8, end_id: String) -> String {
+    let url_construct : String = match url.ends_with("#/") {
+        true => url.as_str().remove_last().remove_last().to_string(),
+        false => url.clone()
+    };
+    format!("{url_construct}&size={szgate}&page={page}&end_id={end_id}&gacha_type={gacha_type}")
 }
 
 fn fetch_data_rec_priv(
@@ -186,11 +200,10 @@ fn fetch_data_rec_priv(
     }
     if (meta["list"].len() != szgate) || run_only_once || cache_hit {
         // Final Recursion.
-        if acc.members().len() == 0 {
-            meta["uid"] = json::JsonValue::from("-1");
-        } else {
-            meta["uid"] = json::JsonValue::from(acc.members().last().unwrap()["uid"].as_str());
-        }
+        meta["uid"] = match  acc.members().len() == 0 {
+            true => json::JsonValue::from("-1"),
+            false => json::JsonValue::from(acc.members().last().unwrap()["uid"].as_str())
+        };
         meta["gacha_type"] = json::JsonValue::from(gacha_type.clone());
         meta["total"] = json::JsonValue::from(acc.len());
 
@@ -210,9 +223,9 @@ fn fetch_data_rec_priv(
 
 fn generate_path(proj_dirs: ProjectDirs, game: Game, uid: &String, gacha_type: &String) -> PathBuf {
     return proj_dirs.data_local_dir()
-                    .join(game.to_string())
-                    .join(uid)
-                    .join(gacha_type.to_owned()+".cache");
+            .join(game.to_string())
+            .join(uid)
+            .join(gacha_type.to_owned()+".cache");
 }
 
 fn write_to_local_cache(game: Game, uid: &String, gacha_type: &String, acc: &json::JsonValue) {
@@ -264,7 +277,7 @@ pub fn fetch_data(_url: String, ignore_cache: bool, skip_write_cache: bool, proc
         // 1. Run it once, get the UID.
         spinner = Spinner::new_with_stream(
             spinners::Dots,
-            "Fetching Metadata...",
+            format!("Fetching Metadata for gacha_type {gacha_type}..."),
             Color::Yellow,
             Streams::Stderr,
         );
@@ -298,6 +311,5 @@ pub fn fetch_data(_url: String, ignore_cache: bool, skip_write_cache: bool, proc
             write_to_local_cache(game, &_uid, &gacha_type, &acc);
         }
     }
-
     return _vec_urls;
 }
