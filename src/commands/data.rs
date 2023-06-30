@@ -72,7 +72,7 @@ fn get_glob(args: &DataArgs) -> Option<Result<Paths, PatternError>> {
 impl DataArgs {
     pub fn execute(&self) -> anyhow::Result<()> {
         if !self.known_url.is_empty() {
-            process_url(self.known_url.clone(), self);
+            process_url_map(self.known_url.clone(), self);
         } else {
             if !self.game_path.exists() {
                 anyhow::bail!("{}", "Given game path doesn't exist".bold().red());
@@ -89,7 +89,7 @@ impl DataArgs {
                                             anyhow::bail!("{}", "No wishes URL found".red().bold());
                                         }
                                         Ok(urls) => {
-                                            process_url(urls[0].to_string(), self);
+                                            process_url_map(urls[0].to_string(), self);
                                         }
                                         Err(err) => eprintln!("Failed to parse wishes URLs: {err}")
                                     }
@@ -108,19 +108,15 @@ impl DataArgs {
 }
 
 // Functional Code.
-// TODO: RUSTify. This looks like "C++ enthusiast's first RUST code".
-fn process_url(url: String, args: &DataArgs) {
+fn process_url_map(url: String, args: &DataArgs) {
     let urlses = fetch_data(
         url.clone(),
         args.ignore_cache, args.skip_write_cache, args.process_all_banners
     );
-    eprintln!(
-        "---\n{}",
-        "Final Data Group URLs".bold().green()
-    );
-    for url in urlses {
-        eprintln!("- {}", url);
-    }
+    eprintln!("---\n{}", "Final Data Group URL(s) m".bold().green());
+    urlses.clone().into_iter().for_each(|single_url| {
+        println!("{}{}", (if urlses.len() > 1 {"- "} else { "" }), single_url);
+    });
 }
 
 fn get_list_of_gacha_types(game: Game, first_type: &String, process_all: bool) -> Vec<String> {
