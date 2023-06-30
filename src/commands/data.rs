@@ -72,7 +72,7 @@ fn get_glob(args: &DataArgs) -> Option<Result<Paths, PatternError>> {
 impl DataArgs {
     pub fn execute(&self) -> anyhow::Result<()> {
         if !self.known_url.is_empty() {
-            process_url_map(self.known_url.clone(), self);
+            process_url_func(self.known_url.clone(), self);
         } else {
             if !self.game_path.exists() {
                 anyhow::bail!("{}", "Given game path doesn't exist".bold().red());
@@ -89,7 +89,7 @@ impl DataArgs {
                                             anyhow::bail!("{}", "No wishes URL found".red().bold());
                                         }
                                         Ok(urls) => {
-                                            process_url_map(urls[0].to_string(), self);
+                                            process_url_func(urls[0].to_string(), self);
                                         }
                                         Err(err) => eprintln!("Failed to parse wishes URLs: {err}")
                                     }
@@ -108,7 +108,7 @@ impl DataArgs {
 }
 
 // Functional Code.
-fn process_url_map(url: String, args: &DataArgs) {
+fn process_url_func(url: String, args: &DataArgs) {
     let urlses = fetch_data(
         url.clone(),
         args.ignore_cache, args.skip_write_cache, args.process_all_banners
