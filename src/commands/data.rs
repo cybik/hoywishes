@@ -11,7 +11,7 @@ use clap::{Args, ValueEnum};
 use std::thread::sleep;
 use std::time::Duration;
 use json;
-use glob::glob;
+use glob::{glob, Paths, PatternError};
 use colored::Colorize;
 use directories::ProjectDirs;
 use spinoff::{Spinner, spinners, Color, Streams};
@@ -60,6 +60,15 @@ pub enum Game {
     Unsupported,
 }
 
+fn get_glob(args: &DataArgs) -> Option<Result<Paths, PatternError>> {
+    match args.game_path.to_str() {
+        Some(path) => {
+            Some(glob(format!("{path}/**/webCaches/Cache/Cache_Data/data_2").as_str()))
+        }
+        None => None
+    }
+}
+
 impl DataArgs {
     pub fn execute(&self) -> anyhow::Result<()> {
         if !self.known_url.is_empty() {
@@ -68,27 +77,30 @@ impl DataArgs {
             if !self.game_path.exists() {
                 anyhow::bail!("{}", "Given game path doesn't exist".bold().red());
             }
-            let _filter = self.game_path.to_str().unwrap().to_owned() + "/**/webCaches/Cache/Cache_Data/data_2";
-            for data_path in glob(_filter.as_str()).expect("Failed to read glob pattern")
-            {
-                match data_path {
-                    Err(_) => {},
-                    Ok(path) => {
-                        if path.exists() {
-                            match parse_wishes_urls(path) {
-                                Ok(urls) if urls.is_empty() => {
-                                    anyhow::bail!("{}", "No wishes URL found".red().bold());
+            match get_glob(self) {
+                Some(data_paths) => {
+                    for data_path in data_paths.expect("Failed to use glob") {
+                        match data_path {
+                            Err(_) => {},
+                            Ok(path) => {
+                                if path.exists() {
+                                    match parse_wishes_urls(path) {
+                                        Ok(urls) if urls.is_empty() => {
+                                            anyhow::bail!("{}", "No wishes URL found".red().bold());
+                                        }
+                                        Ok(urls) => {
+                                            process_url(urls[0].to_string(), self);
+                                        }
+                                        Err(err) => eprintln!("Failed to parse wishes URLs: {err}")
+                                    }
+                                    // One empty line to split series
+                                    println!();
                                 }
-                                Ok(urls) => {
-                                    process_url(urls[0].to_string(), self);
-                                }
-                                Err(err) => eprintln!("Failed to parse wishes URLs: {err}")
                             }
-                            // One empty line to split series
-                            println!();
                         }
                     }
-                }
+                },
+                None => {}
             }
         }
         Ok(())
