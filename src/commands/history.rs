@@ -62,6 +62,7 @@ fn print_url(prompt: &str, url: &String, mode: Mode) {
         Mode::All => {
             print_history_url("- ", url);
             print_data_url("- " , url);
+            println!("-------------"); // separator
         },
     }
 }
