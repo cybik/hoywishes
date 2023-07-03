@@ -1,13 +1,20 @@
 use std::path::PathBuf;
 
-use clap::Args;
+use clap::{Args, ValueEnum};
 
-use crate::url::parse_wishes_urls;
+use crate::url::{build_data_url, parse_wishes_urls};
 use glob::glob;
 use colored::Colorize;
 
 use copypasta_ext::prelude::*;
 use copypasta_ext::x11_fork::ClipboardContext;
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub enum Mode {
+    History,
+    Data,
+    All
+}
 
 #[derive(Args)]
 pub struct HistoryArgs {
@@ -29,6 +36,34 @@ pub struct HistoryArgs {
     #[arg(short, long, default_value_t = 1)]
     /// Maximal number of URLs to return
     pub max_return_num: usize,
+
+    #[arg(value_enum, short, long, default_value_t = Mode::History)]
+    pub url_mode: Mode,
+}
+
+
+fn print_history_url(prompt: &str, url: &String) {
+    println!("{prompt}{url}#/log");
+}
+
+fn print_data_url(prompt: &str, url: &String) {
+    let (_game, data_url, gacha_type) = build_data_url(url).unwrap();
+    println!("{prompt}{data_url}&gacha_type={gacha_type}");
+}
+
+fn print_url(prompt: &str, url: &String, mode: Mode) {
+    match mode {
+        Mode::History => {
+            print_history_url(prompt, url);
+        },
+        Mode::Data => {
+            print_data_url(prompt, url);
+        },
+        Mode::All => {
+            print_history_url("- ", url);
+            print_data_url("- " , url);
+        },
+    }
 }
 
 impl HistoryArgs {
@@ -78,10 +113,14 @@ impl HistoryArgs {
                                 // TODO: Look into data persistence in %USERDIR%/anime-game-data
                                 // TODO: Look into non-miHoYo games support when possible
                                 if self.max_return_num == 1 || urls.len() == 1 {
-                                    println!("{}#/log", urls.last().unwrap());
+                                    print_url("", urls.last().unwrap(), self.url_mode);
                                     let mut clip = ClipboardContext::new().unwrap();
                                     clip.set_contents(urls.last().unwrap().into()).unwrap();
-                                } else { for url in urls { println!("- {}#/log", url); } }
+                                } else {
+                                    for url in urls {
+                                        print_url("- ", &url, self.url_mode);
+                                    }
+                                }
                             }
 
                             Err(err) => eprintln!("Failed to parse wishes URLs: {err}")
