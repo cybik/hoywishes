@@ -74,7 +74,7 @@ impl HistoryArgs {
         }
 
         // Iterate over game installation files and folders
-        let _filter = self.game_path.to_str().unwrap().to_owned() + "/**/webCaches/Cache/Cache_Data/data_2";
+        let _filter = self.game_path.to_str().unwrap().to_owned() + "/**/webCaches/**/Cache/Cache_Data/data_2";
         for data_path in glob(_filter.as_str()).expect("Failed to read glob pattern")
         {
             match data_path {
