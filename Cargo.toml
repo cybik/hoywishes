@@ -1,6 +1,6 @@
 [package]
 name = "wishget"
-version = "0.2.0"
+version = "0.2.1"
 description = "An intended-as-generic Gacha Pull metadata toolkit."
 authors = [
     "Renaud Lepage <root@cybik.moe>",
