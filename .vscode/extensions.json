@@ -1,0 +1,10 @@
+{
+    "recommendations": [
+        "github.vscode-github-actions",
+        "github.vscode-pull-request-github",
+        "bierner.github-markdown-preview",
+        "rust-lang.rust-analyzer",
+        "dustypomerleau.rust-syntax",
+        "serayuzgur.crates"
+    ]
+}
