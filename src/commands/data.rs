@@ -114,7 +114,7 @@ fn process_url_func(url: String, args: &DataArgs) {
         url.clone(),
         args.ignore_cache, args.skip_write_cache, args.process_all_banners
     );
-    eprintln!("---\n{}", "Final Data Group URL(s) m".bold().green());
+    eprintln!("---\n{}", "Final Data Group URL(s)".bold().green());
     urlses.clone().into_iter().for_each(|single_url| {
         println!("{}{}", (if urlses.len() > 1 {"- "} else { "" }), single_url);
     });
