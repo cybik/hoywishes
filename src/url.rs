@@ -7,7 +7,7 @@ use url::{Url};
 /// Try to parse wishes URLs from the given data_2 file path
 /// 
 /// Return values from most recent to the oldest cached URL
-pub fn parse_wishes_urls(data_path: impl AsRef<Path>) -> anyhow::Result<Vec<String>> {
+pub fn parse_wishes_urls(data_path: impl AsRef<Path>) -> anyhow::Result<(Vec<String>, Option<Game>)> {
     // This should be written this way
     let data = std::fs::read(data_path)?;
     let data = String::from_utf8_lossy(&data);
@@ -31,8 +31,19 @@ pub fn parse_wishes_urls(data_path: impl AsRef<Path>) -> anyhow::Result<Vec<Stri
 
         // Convert found URLs to the vector
         .collect::<Vec<String>>();
+    // Rust memory model, yey
+    let first_url = match urls.is_empty() {
+        false => Some(urls[0].clone()),
+        true => None
+    };
 
-    Ok(urls)
+    Ok((
+        urls,
+        match first_url {
+            None => None,
+            Some(first) => Some(get_game(&Url::parse(first.as_str()).expect("Could not parse.")))
+        }
+    ))
 }
 
 fn get_game(_url : &Url) -> Game {
@@ -63,8 +74,7 @@ pub fn build_data_url(history_url: impl AsRef<str>) -> Option<(Game, String, Str
                     // Otherwise only needed query value
                     .and_then(|value| value.split('&').next())
             }
-            let mut _url = base_url.clone();
-            match get_game(&_url) {
+            match get_game(&base_url) {
                 Game::Genshin => get_gacha_type(query, "init_type=")
                     .map(|value| (Game::Genshin, format!("https://hk4e-api-os.hoyoverse.com/event/gacha_info/api/getGachaLog?{query}"), String::from(value))),
 

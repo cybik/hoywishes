@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 
 pub mod history;
 pub mod data;
+pub mod consts;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]

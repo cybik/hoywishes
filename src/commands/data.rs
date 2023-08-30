@@ -15,6 +15,7 @@ use glob::{glob, Paths, PatternError};
 use colored::Colorize;
 use directories::ProjectDirs;
 use spinoff::{Spinner, spinners, Color, Streams};
+use crate::commands::consts;
 
 // App Identifiers
 const QAL: &str = "wishget";
@@ -63,7 +64,7 @@ pub enum Game {
 fn get_glob(args: &DataArgs) -> Option<Result<Paths, PatternError>> {
     match args.game_path.to_str() {
         Some(path) => {
-            Some(glob(format!("{path}/**/webCaches/Cache/Cache_Data/data_2").as_str()))
+            Some(glob(format!("{path}/{}", consts::cache_dir()).as_str()))
         }
         None => None
     }
@@ -85,11 +86,11 @@ impl DataArgs {
                             Ok(path) => {
                                 if path.exists() {
                                     match parse_wishes_urls(path) {
-                                        Ok(urls) if urls.is_empty() => {
+                                        Ok(urls) if urls.0.is_empty() => {
                                             anyhow::bail!("{}", "No wishes URL found".red().bold());
                                         }
                                         Ok(urls) => {
-                                            process_url_func(urls[0].to_string(), self);
+                                            process_url_func(urls.0[0].to_string(), self);
                                         }
                                         Err(err) => eprintln!("Failed to parse wishes URLs: {err}")
                                     }

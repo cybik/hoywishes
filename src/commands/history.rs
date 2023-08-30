@@ -8,6 +8,8 @@ use colored::Colorize;
 
 use copypasta_ext::prelude::*;
 use copypasta_ext::x11_fork::ClipboardContext;
+use crate::commands::consts;
+use crate::commands::data::Game;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum Mode {
@@ -41,9 +43,14 @@ pub struct HistoryArgs {
     pub url_mode: Mode,
 }
 
-
-fn print_history_url(prompt: &str, url: &String) {
-    println!("{prompt}{url}#/log");
+fn print_history_url(prompt: &str, url: &String, game: Option<Game>) {
+    println!("{prompt}{url}{}", match game {
+        None => "", Some(the_game) => match the_game {
+            Game::Genshin => "#/log",
+            Game::HSR => "",
+            Game::Unsupported => ""
+        }
+    });
 }
 
 fn print_data_url(prompt: &str, url: &String) {
@@ -51,16 +58,16 @@ fn print_data_url(prompt: &str, url: &String) {
     println!("{prompt}{data_url}&gacha_type={gacha_type}");
 }
 
-fn print_url(prompt: &str, url: &String, mode: Mode) {
+fn print_url(prompt: &str, url: &String, mode: Mode, game: Option<Game>) {
     match mode {
         Mode::History => {
-            print_history_url(prompt, url);
+            print_history_url(prompt, url, game);
         },
         Mode::Data => {
             print_data_url(prompt, url);
         },
         Mode::All => {
-            print_history_url("- ", url);
+            print_history_url("- ", url, game);
             print_data_url("- " , url);
             println!("-------------"); // separator
         },
@@ -74,7 +81,7 @@ impl HistoryArgs {
         }
 
         // Iterate over game installation files and folders
-        let _filter = self.game_path.to_str().unwrap().to_owned() + "/**/webCaches/**/Cache/Cache_Data/data_2";
+        let _filter = self.game_path.to_str().unwrap().to_owned() + format!("/{}", consts::cache_dir()).as_str();
         for data_path in glob(_filter.as_str()).expect("Failed to read glob pattern")
         {
             match data_path {
@@ -89,22 +96,22 @@ impl HistoryArgs {
                         );
 
                         match parse_wishes_urls(path) {
-                            Ok(urls) if urls.is_empty() => {
+                            Ok(urls) if urls.0.is_empty() => {
                                 anyhow::bail!("{}", "No wishes URL found".red().bold());
                             }
 
                             Ok(mut urls) => {
                                 // Reverse found urls vector if needed
                                 if self.reverse_order {
-                                    urls = urls.into_iter().rev().collect();
+                                    urls.0 = urls.0.into_iter().rev().collect();
                                 }
                                 // Resize to *either* the max-return or the number of hits.
                                 //  This quirk happens when the cache is extremely fresh and
                                 //  has less entries than the max argument.
-                                urls = urls[..urls.len().min(self.max_return_num)].to_vec();
+                                urls.0 = urls.0[..urls.0.len().min(self.max_return_num)].to_vec();
                                 // Open the first found URL
                                 if self.open_url {
-                                    open::that(urls.last().unwrap())?;
+                                    open::that(urls.0.last().unwrap())?;
                                 }
                                 // And print found URL
                                 // TODO: Look into further ways to present the data
@@ -113,13 +120,13 @@ impl HistoryArgs {
                                 //          - Static generation of a wish history list?
                                 // TODO: Look into data persistence in %USERDIR%/anime-game-data
                                 // TODO: Look into non-miHoYo games support when possible
-                                if self.max_return_num == 1 || urls.len() == 1 {
-                                    print_url("", urls.last().unwrap(), self.url_mode);
+                                if self.max_return_num == 1 || urls.0.len() == 1 {
+                                    print_url("", urls.0.last().unwrap(), self.url_mode, urls.1);
                                     let mut clip = ClipboardContext::new().unwrap();
-                                    clip.set_contents(urls.last().unwrap().into()).unwrap();
+                                    clip.set_contents(urls.0.last().unwrap().into()).unwrap();
                                 } else {
-                                    for url in urls {
-                                        print_url("- ", &url, self.url_mode);
+                                    for url in urls.0 {
+                                        print_url("- ", &url, self.url_mode, urls.1);
                                     }
                                 }
                             }
