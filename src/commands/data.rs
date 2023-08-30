@@ -40,7 +40,7 @@ pub struct DataArgs {
     /// Process all known banner types
     pub process_all_banners: bool,
 
-    #[arg(short = 'k', long, required = false)]
+    #[arg(short = 'k', long, default_value_t = String::from(""), required_unless_present("game_path"))]
     /// URL from user, if known
     pub known_url: String,
 }
