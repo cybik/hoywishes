@@ -1,13 +1,17 @@
-# What?
+# What is this dumb thing
 
-Currently: a quick and dirty tool to extract a wish target URL from Genshin Impact and Honkai Star Rail datafiles. 
+It's a quick and dirty tool to extract a wish target URL from Genshin Impact and Honkai Star Rail datafiles.
 
-Future: who knows?
+## Current Features
 
-- Live website with easily clickable buttons to get the latest link
-- Data extraction based on the link itself (metadata obtainable)
-- Local wish data backup
+* Support for Genshin Impact and Honkai Star Rail 
+* Wish URL extraction
+* Local JSON backup of Hoyo wish data over time
 
-## TODO
+## Future
 
-* URL-as-argument mode
+Who knows? This is a hope list, not a wish (heh) list 
+
+* Daemonized live website with easily clickable buttons to get the latest link
+
+
