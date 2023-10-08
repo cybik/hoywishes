@@ -16,8 +16,8 @@ strip = true
 opt-level = 3
 
 [dependencies]
-clap = { version = "4.3.2", features = ["derive"] }
-reqwest = { version = "0.11.18", features = ["blocking"] }
+clap = { version = "4.4", features = ["derive"] }
+reqwest = { version = "0.11", features = ["blocking"] }
 json = "0.12.4"
 
 glob = "0.3.1"
@@ -25,11 +25,11 @@ glob = "0.3.1"
 anyhow = "1.0"
 serde_json = "1.0"
 
-open = "4.1.0"
+open = "5.0"
 colored = "2"
 url = { version = "2", features = ["serde"] }
 copypasta-ext = "0.4.4"
-spinoff = "0.7.0"
+spinoff = "0.8"
 
 directories = "5.0"
 strum = { version = "0.25", features = ["derive"] }

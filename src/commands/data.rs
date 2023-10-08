@@ -95,7 +95,7 @@ impl DataArgs {
                                         Err(err) => eprintln!("Failed to parse wishes URLs: {err}")
                                     }
                                     // One empty line to split series
-                                    println!();
+                                    eprintln!();
                                 }
                             }
                         }
@@ -116,7 +116,8 @@ fn process_url_func(url: String, args: &DataArgs) {
     );
     eprintln!("---\n{}", "Final Data Group URL(s)".bold().green());
     urlses.clone().into_iter().for_each(|single_url| {
-        println!("{}{}", (if urlses.len() > 1 {"- "} else { "" }), single_url);
+        eprint!("{}", (if urlses.len() > 1 {"- "} else { "" }));
+        println!("{single_url}");
     });
 }
 

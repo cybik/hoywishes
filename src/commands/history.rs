@@ -44,7 +44,8 @@ pub struct HistoryArgs {
 }
 
 fn print_history_url(prompt: &str, url: &String, game: Option<Game>) {
-    println!("{prompt}{url}{}", match game {
+    eprint!("{prompt}");
+    println!("{url}{}", match game {
         None => "", Some(the_game) => match the_game {
             Game::Genshin => "#/log",
             Game::HSR => "",
@@ -54,8 +55,9 @@ fn print_history_url(prompt: &str, url: &String, game: Option<Game>) {
 }
 
 fn print_data_url(prompt: &str, url: &String) {
+    eprint!("{prompt}");
     let (_game, data_url, gacha_type) = build_data_url(url).unwrap();
-    println!("{prompt}{data_url}&gacha_type={gacha_type}");
+    println!("{data_url}&gacha_type={gacha_type}");
 }
 
 fn print_url(prompt: &str, url: &String, mode: Mode, game: Option<Game>) {
@@ -69,7 +71,7 @@ fn print_url(prompt: &str, url: &String, mode: Mode, game: Option<Game>) {
         Mode::All => {
             print_history_url("- ", url, game);
             print_data_url("- " , url);
-            println!("-------------"); // separator
+            eprintln!("-------------"); // separator
         },
     }
 }
@@ -135,7 +137,7 @@ impl HistoryArgs {
                         }
 
                         // One empty line to split series
-                        println!();
+                        eprintln!();
                     }
                 }
             }
