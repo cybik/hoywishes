@@ -1,4 +1,4 @@
-name: Rust New
+name: Rust Classic
 
 on:
   push:
@@ -8,7 +8,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-new:
+  build:
     name: Build for ${{ matrix.target }}
     runs-on: ubuntu-latest
     strategy:
@@ -30,7 +30,16 @@ jobs:
           target: ${{ matrix.target }}
           override: true
           components: rustfmt, clippy
-      - uses: actions-rs/cargo@v1
+      - name: Compile
+        id: compile
+        uses: rust-build/rust-build.action@v1.4.3
         with:
-          command: build
-          args: --release --all-features
+          RUSTTARGET: ${{ matrix.target }}
+          UPLOAD_MODE: none
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Binary
+          path: |
+            ${{ steps.compile.outputs.BUILT_ARCHIVE }}
+            ${{ steps.compile.outputs.BUILT_CHECKSUM }}
