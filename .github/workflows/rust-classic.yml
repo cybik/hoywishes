@@ -33,11 +33,4 @@ jobs:
           RUSTTARGET: ${{ matrix.target }}
           TOOLCHAIN_VERSION: 1.70.0
           UPLOAD_MODE: release
-          ARCHIVE_NAME: hoywishes
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: Binary
-          path: |
-            ${{ steps.compile.outputs.BUILT_ARCHIVE }}
-            ${{ steps.compile.outputs.BUILT_CHECKSUM }}
+          ARCHIVE_NAME: hoywishes-${{ matrix.target }}
