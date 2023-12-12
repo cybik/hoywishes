@@ -11,6 +11,14 @@ use copypasta_ext::x11_fork::ClipboardContext;
 use crate::commands::consts;
 use crate::commands::data::Game;
 
+use log::{info, error, Log};
+
+use std::io::{BufWriter, Read};
+use log;
+use log::LevelFilter;
+use simplelog::{ColorChoice, CombinedLogger, Config, ConfigBuilder, SimpleLogger, TerminalMode, TermLogger, WriteLogger};
+use log_buffer;
+
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum Mode {
     History,
@@ -20,32 +28,33 @@ pub enum Mode {
 
 #[derive(Args)]
 pub struct HistoryArgs {
-    #[arg(short, long)]
+    #[arg(short = 'g', long)]
     /// Path to the game installation
     pub game_path: PathBuf,
 
-    #[arg(short, long, default_value_t = false)]
-    /// Return URLs in reversed order (from oldest to recent)
+    #[arg(short = 'r', long, default_value_t = false)]
+    /// Return URLs in reversed order (from oldest to most recent)
     pub reverse_order: bool,
 
-    #[arg(short, long, default_value_t = false)]
+    #[arg(short = 'o', long, default_value_t = false)]
     /// Open first URL in the returning list
     /// 
-    /// If reversed order enabled, then the oldest URL will be opened.
-    /// Otherwise the most recent one
+    /// If reversed order is enabled, the oldest URL will be opened.
+    /// Otherwise, wishget will open the most recent one.
     pub open_url: bool,
 
-    #[arg(short, long, default_value_t = 1)]
-    /// Maximal number of URLs to return
+    #[arg(short = 'm', long, default_value_t = 1)]
+    /// Maximum number of URLs to return
     pub max_return_num: usize,
 
     #[arg(value_enum, short, long, default_value_t = Mode::History)]
+    /// Base URL provided user, if known
     pub url_mode: Mode,
 }
 
 fn print_history_url(prompt: &str, url: &String, game: Option<Game>) {
     eprint!("{prompt}");
-    println!("{url}{}", match game {
+    info!("{url}{}", match game {
         None => "", Some(the_game) => match the_game {
             Game::Genshin => "#/log",
             Game::HSR => "",
@@ -55,9 +64,9 @@ fn print_history_url(prompt: &str, url: &String, game: Option<Game>) {
 }
 
 fn print_data_url(prompt: &str, url: &String) {
-    eprint!("{prompt}");
+    error!("{prompt}");
     let (_game, data_url, gacha_type) = build_data_url(url).unwrap();
-    println!("{data_url}&gacha_type={gacha_type}");
+    info!("{data_url}&gacha_type={gacha_type}");
 }
 
 fn print_url(prompt: &str, url: &String, mode: Mode, game: Option<Game>) {
@@ -71,13 +80,29 @@ fn print_url(prompt: &str, url: &String, mode: Mode, game: Option<Game>) {
         Mode::All => {
             print_history_url("- ", url, game);
             print_data_url("- " , url);
-            eprintln!("-------------"); // separator
+            error!("-------------"); // separator
         },
     }
 }
 
 impl HistoryArgs {
+    fn init_logger(&self) {
+        let _ = CombinedLogger::init(
+            vec![
+                TermLogger::new(
+                    LevelFilter::Info,
+                    ConfigBuilder::new()
+                        .set_time_level(LevelFilter::Off)
+                        .set_max_level(LevelFilter::Off)
+                        .build(),
+                    TerminalMode::Mixed,
+                    ColorChoice::Auto
+                )
+            ]
+        );
+    }
     pub fn execute(&self) -> anyhow::Result<()> {
+        self.init_logger();
         if !self.game_path.exists() {
             anyhow::bail!("{}", "Given game path doesn't exist".bold().red());
         }
@@ -90,7 +115,7 @@ impl HistoryArgs {
                 Err(_) => {},
                 Ok(path) => {
                     if path.exists() {
-                        eprintln!(
+                        error!(
                             "{} {}: {}",
                                 "[#]".cyan().bold(),
                                 "Data file".green().bold(),
@@ -133,11 +158,11 @@ impl HistoryArgs {
                                 }
                             }
 
-                            Err(err) => eprintln!("Failed to parse wishes URLs: {err}")
+                            Err(err) => error!("Failed to parse wishes URLs: {err}")
                         }
 
                         // One empty line to split series
-                        eprintln!();
+                        error!("");
                     }
                 }
             }

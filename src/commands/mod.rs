@@ -2,7 +2,9 @@ use clap::{Parser, Subcommand};
 
 pub mod history;
 pub mod data;
+pub mod daemon;
 pub mod consts;
+
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -17,7 +19,10 @@ pub enum Command {
     History(history::HistoryArgs),
 
     /// Extract web cache data
-    Data(data::DataArgs)
+    Data(data::DataArgs),
+
+    /// Remote-Control Data and History
+    Daemonize(daemon::DaemonArgs),
 }
 
 impl Command {
@@ -25,7 +30,8 @@ impl Command {
     pub fn execute(&self) -> anyhow::Result<()> {
         match self {
             Self::History(args) => args.execute(),
-            Self::Data(args) => args.execute()
+            Self::Data(args) => args.execute(),
+            Self::Daemonize(args) => args.execute()
         }
     }
 }
