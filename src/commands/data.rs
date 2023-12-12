@@ -17,6 +17,12 @@ use directories::ProjectDirs;
 use spinoff::{Spinner, spinners, Color, Streams};
 use crate::commands::consts;
 
+use std::io::{BufWriter, Read};
+use log;
+use log::LevelFilter;
+use simplelog::{ColorChoice, CombinedLogger, Config, ConfigBuilder, SimpleLogger, TerminalMode, TermLogger, WriteLogger};
+use log_buffer;
+
 // App Identifiers
 const QAL: &str = "wishget";
 const ORG: &str = "moe.launcher";
@@ -24,7 +30,7 @@ const WTT: &str = "A Gacha Wish Tracking Tool";
 
 #[derive(Args)]
 pub struct DataArgs {
-    #[arg(short = 'p', long)]
+    #[arg(short = 'g', long)]
     /// Path to the game installation
     pub game_path: PathBuf,
 
@@ -33,7 +39,7 @@ pub struct DataArgs {
     pub ignore_cache: bool,
 
     #[arg(short = 's', long, default_value_t = false)]
-    /// Do not write new cache to storage
+    /// Do not write new or updated cache to storage
     pub skip_write_cache: bool,
 
     #[arg(short = 'a', long, default_value_t = false)]
@@ -41,7 +47,7 @@ pub struct DataArgs {
     pub process_all_banners: bool,
 
     #[arg(short = 'k', long, default_value_t = String::from(""), required_unless_present("game_path"))]
-    /// URL from user, if known
+    /// Base URL provided user, if known
     pub known_url: String,
 }
 
@@ -71,7 +77,23 @@ fn get_glob(args: &DataArgs) -> Option<Result<Paths, PatternError>> {
 }
 
 impl DataArgs {
+    fn init_logger(&self) {
+        let _ = CombinedLogger::init(
+            vec![
+                TermLogger::new(
+                    LevelFilter::Info,
+                    ConfigBuilder::new()
+                        .set_time_level(LevelFilter::Off)
+                        .set_max_level(LevelFilter::Off)
+                        .build(),
+                    TerminalMode::Mixed,
+                    ColorChoice::Auto
+                )
+            ]
+        );
+    }
     pub fn execute(&self) -> anyhow::Result<()> {
+        self.init_logger();
         if !self.known_url.is_empty() {
             process_url_func(self.known_url.clone(), self);
         } else {
