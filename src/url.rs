@@ -15,7 +15,8 @@ pub fn parse_wishes_urls(data_path: impl AsRef<Path>) -> anyhow::Result<(Vec<Str
     // TODO: somehow URLs that are actually irrelevant get caught up. Investigate.
     let urls = data.split('\n').rev()
         // Find last line with part of url we need
-        .filter(|line| line.contains("gacha-v2/"))
+        .filter(|line| line.contains("gacha-v"))
+        .filter(|line| line.contains("index.html"))
 
         // And if we found one - split it by \0 char
         .filter_map(|url| url.split('\0')
@@ -76,7 +77,7 @@ pub fn build_data_url(history_url: impl AsRef<str>) -> Option<(Game, String, Str
             }
             match get_game(&base_url) {
                 Game::Genshin => get_gacha_type(query, "init_type=")
-                    .map(|value| (Game::Genshin, format!("https://hk4e-api-os.hoyoverse.com/event/gacha_info/api/getGachaLog?{query}"), String::from(value))),
+                    .map(|value| (Game::Genshin, format!("https://hk4e-api-os.hoyoverse.com/gacha_info/api/getGachaLog?{query}"), String::from(value))),
 
                 Game::HSR => get_gacha_type(query, "default_gacha_type=")
                     .map(|value| (Game::HSR, format!("https://api-os-takumi.mihoyo.com/common/gacha_record/api/getGachaLog?{query}"), String::from(value))),

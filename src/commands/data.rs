@@ -147,7 +147,7 @@ fn get_list_of_gacha_types(game: Game, first_type: &String, process_all: bool) -
     match process_all {
         true => match game {
             Game::Genshin => {
-                [String::from("100"), String::from("200"), String::from("301"), String::from("302")].to_vec()
+                [String::from("100"), String::from("200"), String::from("301"), String::from("302"), String::from("500")].to_vec()
             }
             Game::HSR => {
                 [String::from("1"), String::from("2"), String::from("11"), String::from("12")].to_vec()
